@@ -1,505 +1,490 @@
-<!DOCTYPE html>
-<html lang="ru">
+﻿<!DOCTYPE html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Balloons</title>
-    <style>
-        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-        html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
-        #phone-viewport { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; touch-action: none; }
-        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; padding-top: env(safe-area-inset-top, 10px); z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        @media (display-mode: standalone) { #ui-wrapper { padding-top: calc(env(safe-area-inset-top, 47px) + 15px); } }
-        #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
-        #controls { display: flex; align-items: center; gap: 15px; }
-        #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; }
-        .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; position: relative; -webkit-tap-highlight-color: transparent; }
-        .nav-btn:active { opacity: 1; }
-
-        .pause-balloon-icon { width: 16px; height: 16px; background-color: #33b5e5; border-radius: 50%; position: relative; box-shadow: 0 0 8px rgba(51, 181, 229, 0.6); }
-        .pause-balloon-icon::after { content: ""; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); border-left: 3px solid transparent; border-right: 3px solid transparent; border-bottom: 4px solid #33b5e5; }
-
-        .wave-icon {
-            width: 16px; height: 16px; display: block;
-            filter: drop-shadow(0 0 6px rgba(51, 181, 229, 0.6));
-            transition: filter 0.15s ease-out;
-            transform: translateY(2px);
-        }
-        .wave-icon .wave-arrow {
-            fill: #33b5e5;
-            transition: fill 0.15s ease-out;
-        }
-
-        .active-mode { opacity: 1 !important; }
-        .active-mode .wave-icon { filter: drop-shadow(0 0 12px #33b5e5) drop-shadow(0 0 22px #33b5e5); }
-
-        .boost-mode { opacity: 1 !important; }
-        .boost-mode .wave-icon { filter: drop-shadow(0 0 12px #00ff00) drop-shadow(0 0 22px #00ff00) !important; }
-        .boost-mode .wave-icon .wave-arrow { fill: #00ff00 !important; }
-
-        #beta-label {
-            position: absolute;
-            left: 100%;
-            top: 50%;
-            transform: translate(4px, -50%);
-            font-family: monospace;
-            font-size: 16px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            color: #00ff00;
-            text-shadow: none;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s ease-out, transform 0.25s ease-out;
-            white-space: nowrap;
-        }
-        #beta-label.visible {
-            opacity: 1;
-            transform: translate(6px, -50%);
-        }
-
-        .balloon-container {
-            position: absolute;
-            width: 85px;
-            height: 180px;
-            cursor: pointer;
-            animation: floatUp linear forwards;
-            will-change: transform;
-            z-index: 5;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .paused { animation-play-state: paused !important; }
-        .paused, .paused * { pointer-events: none !important; }
-        .balloon { position: absolute; top: 0; left: 0; width: 85px; height: 85px; border-radius: 50%; box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4); }
-        .balloon::before { content: ""; position: absolute; top: 12px; left: 12px; width: 20px; height: 12px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; transform: rotate(-30deg); }
-        .balloon::after { content: ""; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid currentColor; }
-        .string { position: absolute; top: 88px; left: 50%; width: 2px; height: 70px; transform: translateX(-50%); clip-path: polygon(0% 0%, 100% 10%, 0% 20%, 100% 30%, 0% 40%, 100% 50%, 0% 60%, 100% 70%, 0% 80%, 100% 90%, 0% 100%); }
-        @keyframes floatUp {
-            0%   { transform: translate3d(0, 102vh, 0); }
-            100% { transform: translate3d(0, -200px, 0); }
-        }
-        .particle {
-            position: absolute;
-            width: 8px; height: 8px; border-radius: 50%;
-            pointer-events: none;
-            animation: explode 0.4s ease-out forwards;
-            z-index: 6;
-            will-change: transform, opacity;
-        }
-        @keyframes explode {
-            0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-            100% { transform: translate3d(var(--dx), var(--dy), 0) scale(0); opacity: 0; }
-        }
-    </style>
+	<title>be1.ru</title>
 </head>
 <body>
-    <div id="phone-viewport">
-        <div id="ui-wrapper">
-            <div id="ui">
-                <div id="controls">
-                    <button id="pause-btn" class="nav-btn">
-                        <div class="pause-balloon-icon"></div>
-                    </button>
-                    <button id="wave-btn" class="nav-btn">
-                        <svg class="wave-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                            <path class="wave-arrow" d="M0 0 L7 8 L0 16 Z" />
-                            <path class="wave-arrow" d="M7 0 L14 8 L7 16 Z" />
-                        </svg>
-                        <span id="beta-label">BETA</span>
-                    </button>
-                </div>
-                <span id="score">0</span>
-            </div>
-        </div>
-    </div>
-    <script>
-        const viewport = document.getElementById('phone-viewport');
-        const scoreEl = document.getElementById('score');
-        const pauseBtn = document.getElementById('pause-btn');
-        const waveBtn = document.getElementById('wave-btn');
-        const betaLabel = document.getElementById('beta-label');
-
-        let score = 0;
-        let isPaused = false;
-        let isWaveMode = false;
-        let isBoostMode = false;
-        let modeChangedOnPause = false;
-        let spawnTimeout;
-
-        // === Boost ===
-        let boostLevel = 1;
-        let boostInterval = null;
-        const BOOST_TICK_MS = 100;
-        const BOOST_MAX_TIME_MS = 70000;
-        const BOOST_START = 1.0;
-        const BOOST_END = 3.5;
-
-        let boostElapsed = 0;
-        let boostLastTick = 0;
-        let lastPopTime = 0;
-        const IDLE_THRESHOLD_MS = 2000;
-
-        const HOLD_TIME_MS = 2000;
-        let holdTimer = null;
-        let waveWasHold = false;
-
-        const BALLOON_WIDTH = 85;
-        const MIN_HORIZONTAL_GAP = 20;
-        const MIN_SPAWN_DELAY = 80;
-        const MAX_SPAWN_ATTEMPTS = 30;
-
-        const RECENT_X_MEMORY = 3;
-        const RECENT_X_MIN_DISTANCE = 60;
-        const recentXs = [];
-
-        // Максимум одновременно активных шариков — защита от перегрузки
-        const MAX_ACTIVE_BALLOONS = 40;
-
-        const colors = ['#ff3366', '#00ffcc', '#ffcc00', '#ff6600', '#9933ff', '#33ff33'];
-        let lastColorIndex = -1;
-
-        const activeBalloons = new Map();
-        let nextBalloonId = 0;
-
-        function isVerticallyOverlapping(rect, myTop, myBottom) {
-            return !(rect.bottom < myTop || rect.top > myBottom);
-        }
-
-        function tryPickSafeLeft() {
-            const maxLeft = Math.max(5, viewport.clientWidth - BALLOON_WIDTH - 10);
-            const vr = viewport.getBoundingClientRect();
-
-            const newTop = vr.bottom - 180;
-            const newBottom = vr.bottom;
-
-            const blockingPositions = [];
-            activeBalloons.forEach(({ el, x }) => {
-                if (!el.isConnected) return;
-                const r = el.getBoundingClientRect();
-                if (r.bottom < vr.top - 50 || r.top > vr.bottom + 50) return;
-                if (!isVerticallyOverlapping(r, newTop, newBottom)) return;
-                blockingPositions.push(x);
-            });
-
-            for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
-                const candidate = Math.random() * (maxLeft - 5) + 5;
-
-                const collidesActive = blockingPositions.some(x =>
-                    Math.abs(x - candidate) < (BALLOON_WIDTH + MIN_HORIZONTAL_GAP)
-                );
-
-                const tooCloseToRecent = recentXs.some(x =>
-                    Math.abs(x - candidate) < RECENT_X_MIN_DISTANCE
-                );
-
-                if (!collidesActive && !tooCloseToRecent) return candidate;
-            }
-
-            for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
-                const candidate = Math.random() * (maxLeft - 5) + 5;
-                const collidesActive = blockingPositions.some(x =>
-                    Math.abs(x - candidate) < (BALLOON_WIDTH + MIN_HORIZONTAL_GAP)
-                );
-                if (!collidesActive) return candidate;
-            }
-
-            return Math.random() * (maxLeft - 5) + 5;
-        }
-
-        function rememberX(x) {
-            recentXs.push(x);
-            if (recentXs.length > RECENT_X_MEMORY) recentXs.shift();
-        }
-
-        // === Антидребезг для тапов ===
-        // Флаг lastTouchTime — чтобы pointerdown и touchstart не срабатывали оба.
-        let lastTouchTime = 0;
-
-        function handlePop(container, id, color, poppedRef) {
-            return function (e) {
-                if (poppedRef.value) return; // уже лопнули
-                if (isPaused) return;
-
-                // Защита от двойного срабатывания (touchstart + pointerdown)
-                const now = performance.now();
-                if (now - lastTouchTime < 50) return;
-                lastTouchTime = now;
-
-                poppedRef.value = true;
-
-                e.preventDefault();
-                e.stopPropagation();
-
-                lastPopTime = now;
-
-                const r = container.getBoundingClientRect();
-                const vr = viewport.getBoundingClientRect();
-                for (let i = 0; i < 12; i++) {
-                    const p = document.createElement('div');
-                    const a = (i / 12) * Math.PI * 2 + Math.random() * 0.5;
-                    const d = Math.random() * 60 + 40;
-                    p.className = 'particle';
-                    p.style.backgroundColor = color;
-                    p.style.left = `${r.left - vr.left + 42.5}px`;
-                    p.style.top = `${r.top - vr.top + 42.5}px`;
-                    p.style.setProperty('--dx', `${Math.cos(a) * d}px`);
-                    p.style.setProperty('--dy', `${Math.sin(a) * d}px`);
-                    viewport.appendChild(p);
-                    p.addEventListener('animationend', () => p.remove());
-                }
-                score++;
-                scoreEl.textContent = score;
-
-                activeBalloons.delete(id);
-                if (container.isConnected) container.remove();
-            };
-        }
-
-        function createBalloon(leftPos) {
-            const id = nextBalloonId++;
-
-            const container = document.createElement('div');
-            const balloon = document.createElement('div');
-            const string = document.createElement('div');
-
-            let colorIndex = Math.floor(Math.random() * colors.length);
-            while (colorIndex === lastColorIndex) {
-                colorIndex = Math.floor(Math.random() * colors.length);
-            }
-            lastColorIndex = colorIndex;
-            const color = colors[colorIndex];
-
-            container.className = 'balloon-container';
-            balloon.className = 'balloon';
-            string.className = 'string';
-
-            balloon.style.backgroundColor = color;
-            balloon.style.color = color;
-            string.style.background = color;
-
-            container.appendChild(balloon);
-            container.appendChild(string);
-
-            container.style.left = `${leftPos}px`;
-
-            activeBalloons.set(id, { el: container, x: leftPos });
-
-            let duration = 6.0;
-            if (isWaveMode) duration = 3.0;
-            if (isBoostMode) duration = 6.0 / boostLevel;
-
-            container.style.animationDuration = `${duration}s`;
-
-            const cleanup = () => {
-                activeBalloons.delete(id);
-                if (container.isConnected) container.remove();
-            };
-
-            // Флаг «уже лопнут» — против двойного срабатывания
-            const poppedRef = { value: false };
-            const popHandler = handlePop(container, id, color, poppedRef);
-
-            // Слушаем И touchstart, И pointerdown — что сработает быстрее.
-            // Защита от двойного вызова — внутри handlePop через lastTouchTime и poppedRef.
-            container.addEventListener('touchstart', popHandler, { passive: false });
-            container.addEventListener('pointerdown', popHandler);
-            container.addEventListener('animationend', cleanup);
-
-            viewport.appendChild(container);
-            if (isPaused) container.classList.add('paused');
-        }
-
-        function scheduleSpawn() {
-            if (isPaused) return;
-
-            // Защита от перегрузки
-            if (activeBalloons.size >= MAX_ACTIVE_BALLOONS) {
-                spawnTimeout = setTimeout(scheduleSpawn, 200);
-                return;
-            }
-
-            const left = tryPickSafeLeft();
-            createBalloon(left);
-            rememberX(left);
-
-            let delay;
-            if (isBoostMode) {
-                delay = 500 / boostLevel;
-            } else if (isWaveMode) {
-                delay = 250 + Math.random() * 150;
-            } else {
-                delay = 450 + Math.random() * 200;
-            }
-
-            if (delay < MIN_SPAWN_DELAY) delay = MIN_SPAWN_DELAY;
-            spawnTimeout = setTimeout(scheduleSpawn, delay);
-        }
-
-        function resetField() {
-            activeBalloons.clear();
-            recentXs.length = 0;
-            document.querySelectorAll('.balloon-container').forEach(b => b.remove());
-            score = 0;
-            scoreEl.textContent = score;
-        }
-
-        // === Wave ===
-        function toggleWaveMode() {
-            if (isBoostMode) {
-                stopBoost();
-                resetField();
-                clearTimeout(spawnTimeout);
-                scheduleSpawn();
-                return;
-            }
-
-            isWaveMode = !isWaveMode;
-            resetField();
-
-            if (isWaveMode) waveBtn.classList.add('active-mode');
-            else waveBtn.classList.remove('active-mode');
-
-            if (isPaused) {
-                modeChangedOnPause = true;
-            } else {
-                clearTimeout(spawnTimeout);
-                scheduleSpawn();
-            }
-        }
-
-        // === Boost ===
-        function startBoost() {
-            isBoostMode = true;
-            isWaveMode = false;
-            boostLevel = BOOST_START;
-            boostElapsed = 0;
-            boostLastTick = performance.now();
-            lastPopTime = performance.now();
-
-            waveBtn.classList.remove('active-mode');
-            waveBtn.classList.add('boost-mode');
-
-            betaLabel.classList.add('visible');
-
-            resetField();
-
-            clearInterval(boostInterval);
-            boostInterval = setInterval(() => {
-                const now = performance.now();
-                const dt = now - boostLastTick;
-                boostLastTick = now;
-
-                const timeSinceLastPop = now - lastPopTime;
-                if (timeSinceLastPop > IDLE_THRESHOLD_MS) return;
-
-                boostElapsed += dt;
-                if (boostElapsed > BOOST_MAX_TIME_MS) boostElapsed = BOOST_MAX_TIME_MS;
-
-                const t = boostElapsed / BOOST_MAX_TIME_MS;
-                boostLevel = BOOST_START + (BOOST_END - BOOST_START) * t;
-            }, BOOST_TICK_MS);
-
-            clearTimeout(spawnTimeout);
-            scheduleSpawn();
-        }
-
-        function stopBoost() {
-            isBoostMode = false;
-            boostLevel = 1;
-            boostElapsed = 0;
-            waveBtn.classList.remove('boost-mode');
-
-            betaLabel.classList.remove('visible');
-
-            clearInterval(boostInterval);
-            boostInterval = null;
-        }
-
-        // === Кнопка Wave ===
-        let waveLastTouchTime = 0;
-
-        function waveDown(e) {
-            const now = performance.now();
-            if (now - waveLastTouchTime < 50) return;
-            waveLastTouchTime = now;
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            waveWasHold = false;
-
-            if (!isBoostMode) {
-                holdTimer = setTimeout(() => {
-                    waveWasHold = true;
-                    startBoost();
-                }, HOLD_TIME_MS);
-            }
-        }
-
-        function waveUp(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            clearTimeout(holdTimer);
-            if (waveWasHold) return;
-            toggleWaveMode();
-        }
-
-        waveBtn.addEventListener('touchstart', waveDown, { passive: false });
-        waveBtn.addEventListener('pointerdown', waveDown);
-        waveBtn.addEventListener('touchend', waveUp);
-        waveBtn.addEventListener('pointerup', waveUp);
-        waveBtn.addEventListener('touchcancel', () => clearTimeout(holdTimer));
-        waveBtn.addEventListener('pointercancel', () => clearTimeout(holdTimer));
-
-        // === Пауза ===
-        let pauseLastTouchTime = 0;
-
-        function pauseDown(e) {
-            const now = performance.now();
-            if (now - pauseLastTouchTime < 50) return;
-            pauseLastTouchTime = now;
-
-            e.preventDefault();
-            e.stopPropagation();
-            togglePause();
-        }
-
-        pauseBtn.addEventListener('touchstart', pauseDown, { passive: false });
-        pauseBtn.addEventListener('pointerdown', pauseDown);
-
-        function togglePause() {
-            isPaused = !isPaused;
-
-            document.querySelectorAll('.balloon-container').forEach(b => {
-                if (isPaused) {
-                    b.classList.add('paused');
-                } else {
-                    b.classList.add('paused');
-                    void b.offsetHeight;
-                    b.classList.remove('paused');
-                }
-            });
-
-            if (isPaused) {
-                pauseBtn.style.opacity = '1';
-                clearTimeout(spawnTimeout);
-            } else {
-                pauseBtn.style.opacity = '0.4';
-                clearTimeout(spawnTimeout);
-                if (modeChangedOnPause) {
-                    modeChangedOnPause = false;
-                    scheduleSpawn();
-                } else {
-                    spawnTimeout = setTimeout(scheduleSpawn, 400);
-                }
-            }
-        }
-
-        scheduleSpawn();
-    </script>
+<p>&lt;!DOCTYPE html&gt;<br />
+&lt;html lang=&quot;ru&quot;&gt;<br />
+&lt;head&gt;<br />
+&nbsp; &nbsp; &lt;meta charset=&quot;UTF-8&quot;&gt;<br />
+&nbsp; &nbsp; &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover&quot;&gt;<br />
+&nbsp; &nbsp; &lt;meta name=&quot;apple-mobile-web-app-capable&quot; content=&quot;yes&quot;&gt;<br />
+&nbsp; &nbsp; &lt;meta name=&quot;apple-mobile-web-app-status-bar-style&quot; content=&quot;black-translucent&quot;&gt;<br />
+&nbsp; &nbsp; &lt;title&gt;Balloons&lt;/title&gt;<br />
+&nbsp; &nbsp; &lt;style&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; #phone-viewport { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; touch-action: none; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; padding-top: env(safe-area-inset-top, 10px); z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; @media (display-mode: standalone) { #ui-wrapper { padding-top: calc(env(safe-area-inset-top, 47px) + 15px); } }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; #controls { display: flex; align-items: center; gap: 15px; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; font-family: sans-serif; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; position: relative; -webkit-tap-highlight-color: transparent; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .nav-btn:active { opacity: 1; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .pause-balloon-icon { width: 16px; height: 16px; background-color: #33b5e5; border-radius: 50%; position: relative; box-shadow: 0 0 8px rgba(51, 181, 229, 0.6); }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .pause-balloon-icon::after { content: &quot;&quot;; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); border-left: 3px solid transparent; border-right: 3px solid transparent; border-bottom: 4px solid #33b5e5; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .wave-icon {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; width: 16px; height: 16px; display: block;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; filter: drop-shadow(0 0 6px rgba(51, 181, 229, 0.6));<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; transition: filter 0.15s ease-out;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; transform: translateY(2px);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .wave-icon .wave-arrow {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; fill: #33b5e5;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; transition: fill 0.15s ease-out;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .active-mode { opacity: 1 !important; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .active-mode .wave-icon { filter: drop-shadow(0 0 12px #33b5e5) drop-shadow(0 0 22px #33b5e5); }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .beta-label {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; position: absolute;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; left: 100%;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; top: 50%;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; transform: translate(6px, -50%);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; font-family: sans-serif;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; font-size: 14px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; font-weight: bold;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; letter-spacing: 0.5px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; color: #33b5e5;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; text-shadow: none;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pointer-events: none;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; white-space: nowrap;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .balloon-container {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; position: absolute;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; width: 85px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; height: 90px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; z-index: 5;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pointer-events: none;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -webkit-tap-highlight-color: transparent;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .paused { animation-play-state: paused !important; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .paused, .paused * { pointer-events: none !important; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .balloon {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; position: absolute;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; top: 0; left: 0;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; width: 85px; height: 85px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; border-radius: 50%;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pointer-events: none;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .balloon::before { content: &quot;&quot;; position: absolute; top: 12px; left: 12px; width: 20px; height: 12px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; transform: rotate(-30deg); pointer-events: none; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; .balloon::after { content: &quot;&quot;; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid currentColor; pointer-events: none; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .balloon-hitbox {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; position: absolute;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; top: -10px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; left: -10px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; width: 85px; height: 85px;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; border-radius: 50%;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; background: transparent;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pointer-events: auto;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cursor: pointer;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; touch-action: manipulation;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; @keyframes floatUp {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 0% &nbsp; { transform: translate3d(0, 102vh, 0); }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 100% { transform: translate3d(0, -200px, 0); }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; .particle {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; position: absolute;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; width: 8px; height: 8px; border-radius: 50%;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pointer-events: none;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; animation: explode 0.4s ease-out forwards;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; z-index: 6;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; will-change: transform, opacity;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; @keyframes explode {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 0% &nbsp; { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 100% { transform: translate3d(var(--dx), var(--dy), 0) scale(0); opacity: 0; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &lt;/style&gt;<br />
+&lt;/head&gt;<br />
+&lt;body&gt;<br />
+&nbsp; &nbsp; &lt;div id=&quot;phone-viewport&quot;&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &lt;div id=&quot;ui-wrapper&quot;&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;div id=&quot;ui&quot;&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;div id=&quot;controls&quot;&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;button id=&quot;pause-btn&quot; class=&quot;nav-btn&quot;&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;div class=&quot;pause-balloon-icon&quot;&gt;&lt;/div&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;/button&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;button id=&quot;wave-btn&quot; class=&quot;nav-btn&quot;&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;svg class=&quot;wave-icon&quot; viewBox=&quot;0 0 16 16&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;path class=&quot;wave-arrow&quot; d=&quot;M0 0 L7 8 L0 16 Z&quot; /&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;path class=&quot;wave-arrow&quot; d=&quot;M7 0 L14 8 L7 16 Z&quot; /&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;/svg&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;span class=&quot;beta-label&quot;&gt;Beta 1.0&lt;/span&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;/button&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;/div&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;span id=&quot;score&quot;&gt;0&lt;/span&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &lt;/div&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &lt;/div&gt;<br />
+&nbsp; &nbsp; &lt;/div&gt;<br />
+&nbsp; &nbsp; &lt;script&gt;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; const viewport = document.getElementById(&#39;phone-viewport&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; const scoreEl = document.getElementById(&#39;score&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; const pauseBtn = document.getElementById(&#39;pause-btn&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; const waveBtn = document.getElementById(&#39;wave-btn&#39;);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; let score = 0;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let isPaused = false;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let isWaveMode = false;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let modeChangedOnPause = false;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let spawnTimeout;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; let BALLOON_WIDTH = 85;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; const HITBOX_EXTRA = 10;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; const MAX_ACTIVE = 3;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; // === РАНДОМ С ЗАЩИТОЙ ОТ НИТКИ ===<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let prevX = -1;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; // === АУДИО ===<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let audioCtx = null;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function initAudio() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (audioCtx) return;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; try {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const Ctx = window.AudioContext || window.webkitAudioContext;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; audioCtx = new Ctx();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; } catch (e) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; audioCtx = null;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function unlockAudio() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; initAudio();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (audioCtx &amp;&amp; audioCtx.state === &#39;suspended&#39;) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; audioCtx.resume();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function playClick() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (!audioCtx) return;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (audioCtx.state === &#39;suspended&#39;) audioCtx.resume();</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const now = audioCtx.currentTime;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const noiseLen = Math.floor(audioCtx.sampleRate * 0.008);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const buf = audioCtx.createBuffer(1, noiseLen, audioCtx.sampleRate);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const d = buf.getChannelData(0);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; for (let i = 0; i &lt; noiseLen; i++) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const t = i / noiseLen;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 5);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const noise = audioCtx.createBufferSource();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noise.buffer = buf;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const noiseFilter = audioCtx.createBiquadFilter();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noiseFilter.type = &#39;bandpass&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noiseFilter.frequency.value = 3500;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noiseFilter.Q.value = 1.0;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const noiseGain = audioCtx.createGain();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noiseGain.gain.setValueAtTime(0.5, now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.01);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noise.connect(noiseFilter);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noiseFilter.connect(noiseGain);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noiseGain.connect(audioCtx.destination);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noise.start(now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; noise.stop(now + 0.015);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const osc1 = audioCtx.createOscillator();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const gain1 = audioCtx.createGain();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc1.type = &#39;triangle&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc1.frequency.setValueAtTime(900, now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc1.frequency.exponentialRampToValueAtTime(500, now + 0.015);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain1.gain.setValueAtTime(0.0001, now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain1.gain.exponentialRampToValueAtTime(0.3, now + 0.001);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc1.connect(gain1);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain1.connect(audioCtx.destination);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc1.start(now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc1.stop(now + 0.025);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const osc2 = audioCtx.createOscillator();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const gain2 = audioCtx.createGain();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc2.type = &#39;sine&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc2.frequency.setValueAtTime(1800, now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain2.gain.setValueAtTime(0.0001, now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain2.gain.exponentialRampToValueAtTime(0.08, now + 0.001);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.012);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc2.connect(gain2);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; gain2.connect(audioCtx.destination);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc2.start(now);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; osc2.stop(now + 0.015);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; document.addEventListener(&#39;touchstart&#39;, unlockAudio, { once: true, passive: true });<br />
+&nbsp; &nbsp; &nbsp; &nbsp; document.addEventListener(&#39;pointerdown&#39;, unlockAudio, { once: true });</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; // === Логика ===<br />
+&nbsp; &nbsp; &nbsp; &nbsp; function updateSizes() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const W = viewport.clientWidth;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BALLOON_WIDTH = Math.max(75, Math.min(130, Math.round(W * 0.24)));<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; window.addEventListener(&#39;resize&#39;, updateSizes);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; window.addEventListener(&#39;orientationchange&#39;, () =&gt; setTimeout(updateSizes, 200));<br />
+&nbsp; &nbsp; &nbsp; &nbsp; updateSizes();</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; const colors = [&#39;#ff3366&#39;, &#39;#33b5e5&#39;, &#39;#ffcc00&#39;, &#39;#ff6600&#39;, &#39;#9933ff&#39;, &#39;#33ff33&#39;];<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let lastColorIndex = -1;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; const activeBalloons = new Map();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; let nextBalloonId = 0;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; // Рандом: не даём попасть в тот же X, где был предыдущий шарик<br />
+&nbsp; &nbsp; &nbsp; &nbsp; function pickRandomX() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const W = viewport.clientWidth;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const maxX = W - BALLOON_WIDTH;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; // Первый шарик<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (prevX &lt; 0) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const x = Math.random() * maxX;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; prevX = x;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return x;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; // 10 попыток найти X далеко от предыдущего<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; for (let i = 0; i &lt; 10; i++) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const x = Math.random() * maxX;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (Math.abs(x - prevX) &gt; BALLOON_WIDTH + 20) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; prevX = x;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return x;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; // Не нашли &mdash; берём что есть<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const fallback = Math.random() * maxX;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; prevX = fallback;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return fallback;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function createBalloon(leftPos) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const id = nextBalloonId++;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const container = document.createElement(&#39;div&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const balloon = document.createElement(&#39;div&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const hitbox = document.createElement(&#39;div&#39;);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; let colorIndex = Math.floor(Math.random() * colors.length);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; while (colorIndex === lastColorIndex) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; colorIndex = Math.floor(Math.random() * colors.length);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; lastColorIndex = colorIndex;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const color = colors[colorIndex];</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.className = &#39;balloon-container&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; balloon.className = &#39;balloon&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hitbox.className = &#39;balloon-hitbox&#39;;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; balloon.style.backgroundColor = color;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; balloon.style.color = color;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const w = BALLOON_WIDTH;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const hitboxSize = w + HITBOX_EXTRA * 2;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; balloon.style.width = w + &#39;px&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; balloon.style.height = w + &#39;px&#39;;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hitbox.style.width = hitboxSize + &#39;px&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hitbox.style.height = hitboxSize + &#39;px&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hitbox.style.left = (-HITBOX_EXTRA) + &#39;px&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hitbox.style.top = (-HITBOX_EXTRA) + &#39;px&#39;;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.style.width = w + &#39;px&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.style.height = (w + 5) + &#39;px&#39;;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.appendChild(hitbox);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.appendChild(balloon);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.style.left = `${leftPos}px`;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; activeBalloons.set(id, { el: container, x: leftPos });</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const duration = isWaveMode ? 1.6 : 6.0;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; let cleanedUp = false;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const cleanup = () =&gt; {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (cleanedUp) return;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cleanedUp = true;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; activeBalloons.delete(id);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (container.isConnected) container.remove();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; };</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; let popped = false;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const popHandler = (e) =&gt; {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (popped) return;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isPaused) return;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; popped = true;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; e.preventDefault();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; e.stopPropagation();</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; unlockAudio();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; playClick();</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const r = container.getBoundingClientRect();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const vr = viewport.getBoundingClientRect();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const cx = BALLOON_WIDTH / 2;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; for (let i = 0; i &lt; 12; i++) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const p = document.createElement(&#39;div&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const a = (i / 12) * Math.PI * 2 + Math.random() * 0.5;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const d = Math.random() * 60 + 40;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; p.className = &#39;particle&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; p.style.backgroundColor = color;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; p.style.left = `${r.left - vr.left + cx}px`;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; p.style.top = `${r.top - vr.top + cx}px`;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; p.style.setProperty(&#39;--dx&#39;, `${Math.cos(a) * d}px`);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; p.style.setProperty(&#39;--dy&#39;, `${Math.sin(a) * d}px`);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; viewport.appendChild(p);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; p.addEventListener(&#39;animationend&#39;, () =&gt; p.remove());<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; score++;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; scoreEl.textContent = score;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cleanup();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; };</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hitbox.addEventListener(&#39;touchstart&#39;, popHandler, { passive: false });<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hitbox.addEventListener(&#39;pointerdown&#39;, popHandler);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.addEventListener(&#39;animationend&#39;, cleanup);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; viewport.appendChild(container);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; void container.offsetHeight;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; container.style.animation = `floatUp ${duration}s linear forwards`;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; setTimeout(cleanup, duration * 1000 + 200);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isPaused) container.classList.add(&#39;paused&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function scheduleSpawn() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isPaused) return;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (activeBalloons.size &gt;= MAX_ACTIVE) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; spawnTimeout = setTimeout(scheduleSpawn, 200);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; const left = pickRandomX();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; createBalloon(left);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; let delay;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isWaveMode) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; delay = 150 + Math.random() * 100;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; } else {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; delay = 600 + Math.random() * 200;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; spawnTimeout = setTimeout(scheduleSpawn, delay);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function resetField() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; activeBalloons.clear();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; prevX = -1;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; document.querySelectorAll(&#39;.balloon-container&#39;).forEach(b =&gt; b.remove());<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; score = 0;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; scoreEl.textContent = score;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function toggleWaveMode() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; isWaveMode = !isWaveMode;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; resetField();</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isWaveMode) waveBtn.classList.add(&#39;active-mode&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; else waveBtn.classList.remove(&#39;active-mode&#39;);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isPaused) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; modeChangedOnPause = true;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; } else {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; clearTimeout(spawnTimeout);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; scheduleSpawn();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; let waveBusy = false;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function waveTap(e) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; e.preventDefault();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; e.stopPropagation();</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (waveBusy) return;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; waveBusy = true;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; setTimeout(() =&gt; { waveBusy = false; }, 350);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; unlockAudio();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; toggleWaveMode();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; waveBtn.addEventListener(&#39;touchstart&#39;, waveTap, { passive: false });<br />
+&nbsp; &nbsp; &nbsp; &nbsp; waveBtn.addEventListener(&#39;pointerdown&#39;, waveTap);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; let pauseBusy = false;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function pauseTap(e) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; e.preventDefault();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; e.stopPropagation();</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (pauseBusy) return;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pauseBusy = true;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; setTimeout(() =&gt; { pauseBusy = false; }, 350);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; unlockAudio();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; togglePause();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; pauseBtn.addEventListener(&#39;touchstart&#39;, pauseTap, { passive: false });<br />
+&nbsp; &nbsp; &nbsp; &nbsp; pauseBtn.addEventListener(&#39;pointerdown&#39;, pauseTap);</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; function togglePause() {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; isPaused = !isPaused;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; document.querySelectorAll(&#39;.balloon-container&#39;).forEach(b =&gt; {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isPaused) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.classList.add(&#39;paused&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; } else {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.classList.add(&#39;paused&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; void b.offsetHeight;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.classList.remove(&#39;paused&#39;);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; });</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (isPaused) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pauseBtn.style.opacity = &#39;1&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; clearTimeout(spawnTimeout);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; } else {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; pauseBtn.style.opacity = &#39;0.4&#39;;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; clearTimeout(spawnTimeout);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (modeChangedOnPause) {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; modeChangedOnPause = false;<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; scheduleSpawn();<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; } else {<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; spawnTimeout = setTimeout(scheduleSpawn, 300);<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br />
+&nbsp; &nbsp; &nbsp; &nbsp; }</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; scheduleSpawn();<br />
+&nbsp; &nbsp; &lt;/script&gt;<br />
+&lt;/body&gt;<br />
+&lt;/html&gt;</p>
 </body>
 </html>
