@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover растягивает фон на весь экран под челку -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Balloons</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+        body { margin: 0; padding: 0; background: #111; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
+        #phone-viewport { position: relative; width: 100vw; height: 100vh; max-width: 390px; max-height: 844px; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; box-shadow: 0 0 40px rgba(0,0,0,0.8); border-radius: 40px; border: 4px solid #222; }
+        
+        /* Верхняя панель автоматически учитывает Safe Area (безопасную зону челки) на iOS */
+        #ui { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            /* env(safe-area-inset-top) сдвигает панель вниз ровно под вырез iPhone */
+            padding-top: calc(env(safe-area-inset-top, 20px) + 5px);
+            padding-bottom: 10px;
+            padding-left: 20px;
+            padding-right: 25px;
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            background-color: #000; 
+            border-bottom: 2px solid #33b5e5; 
+            z-index: 20; 
+        }
+        #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; }
+        
+        /* Кнопка паузы: только две палочки, аккуратно прижатые влево */
+        #pause-btn { background: none; border: none; padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.35; margin-left: -5px; }
+        #pause-btn:active { opacity: 1; }
+        
+        /* Чистые две палочки через CSS */
+        .pause-icon { width: 12px; height: 15px; position: relative; }
+        .pause-icon::before, .pause-icon::after { content: ""; position: absolute; width: 3.5px; height: 15px; background-color: #33b5e5; border-radius: 1px; top: 0; }
+        .pause-icon::before { left: 0; }
+        .pause-icon::after { right: 0; }
+
+        .balloon-container { position: absolute; width: 85px; height: 180px; cursor: pointer; animation: floatUp linear forwards; will-change: transform; z-index: 5; }
+        .paused { animation-play-state: paused !important; }
+
+        .balloon { position: absolute; top: 0; left: 0; width: 85px; height: 85px; border-radius: 50%; box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4); }
+        .balloon::before { content: ""; position: absolute; top: 12px; left: 12px; width: 20px; height: 12px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; transform: rotate(-30deg); }
+        .balloon::after { content: ""; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid currentColor; }
+        .string { position: absolute; top: 88px; left: 50%; width: 2px; height: 70px; transform: translateX(-50%); clip-path: polygon(0% 0%, 100% 10%, 0% 20%, 100% 30%, 0% 40%, 100% 50%, 0% 60%, 100% 70%, 0% 80%, 100% 90%, 0% 100%); }
+        
+        @keyframes floatUp { 
+            0% { transform: translateY(850px); } 
+            100% { transform: translateY(-190px); } 
+        }
+        
+        .particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; animation: explode 0.4s ease-out forwards; z-index: 6; }
+        @keyframes explode { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div id="phone-viewport">
+        <div id="ui">
+            <button id="pause-btn">
+                <div class="pause-icon"></div>
+            </button>
+            <span id="score">0</span>
+        </div>
+    </div>
+    <script>
+        const viewport = document.getElementById('phone-viewport'), 
+              scoreEl = document.getElementById('score'),
+              pauseBtn = document.getElementById('pause-btn');
+              
+        let score = 0; 
+        let isPaused = false;
+        let spawnTimeout;
+        const colors = ['#ff3366', '#00ffcc', '#ffcc00', '#ff6600', '#9933ff', '#33ff33'];
+        
+        function gameLoop() {
+            if (isPaused) return;
+
+            const container = document.createElement('div'), balloon = document.createElement('div'), string = document.createElement('div'), color = colors[Math.floor(Math.random() * colors.length)];
+            container.className = 'balloon-container'; balloon.className = 'balloon'; string.className = 'string';
+            balloon.style.backgroundColor = balloon.style.color = string.style.background = color;
+            container.appendChild(balloon); container.appendChild(string);
+            container.style.left = `${Math.random() * (viewport.clientWidth - 95) + 5}px`;
+            
+            // Зафиксированная спокойная скорость (6 секунд на полет)
+            container.style.animationDuration = '6.0s';
+            
+            const pop = (e) => {
+                if (isPaused) return; 
+                e.preventDefault(); e.stopPropagation();
+                const r = container.getBoundingClientRect(), vr = viewport.getBoundingClientRect();
+                for (let i = 0; i < 12; i++) {
+                    const p = document.createElement('div'), a = (i / 12) * Math.PI * 2 + Math.random() * 0.5, d = Math.random() * 60 + 40;
+                    p.className = 'particle'; p.style.backgroundColor = color; p.style.left = `${r.left - vr.left + 42.5}px`; p.style.top = `${r.top - vr.top + 42.5}px`;
+                    p.style.setProperty('--dx', `${Math.cos(a) * d}px`); p.style.setProperty('--dy', `${Math.sin(a) * d}px`);
+                    viewport.appendChild(p); p.addEventListener('animationend', () => p.remove());
+                }
+                score++; scoreEl.textContent = score; container.remove();
+            };
+            
+            container.addEventListener('touchstart', pop, { passive: false }); 
+            container.addEventListener('mousedown', pop);
+            container.addEventListener('animationend', () => { if (viewport.contains(container)) container.remove(); });
+            viewport.appendChild(container); 
+            
+            spawnTimeout = setTimeout(gameLoop, 1300);
+        }
+
+        pauseBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            togglePause();
+        });
+        pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePause();
+        });
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const balloons = document.querySelectorAll('.balloon-container');
+            
+            balloons.forEach(b => {
+                if (isPaused) {
+                    b.classList.add('paused');
+                } else {
+                    b.classList.add('paused'); 
+                    b.offsetHeight; 
+                    b.classList.remove('paused');
+                }
+            });
+
+            if (isPaused) {
+                pauseBtn.style.opacity = '1';
+                clearTimeout(spawnTimeout);
+            } else {
+                pauseBtn.style.opacity = '0.35';
+                spawnTimeout = setTimeout(gameLoop, 600);
+            }
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
+
