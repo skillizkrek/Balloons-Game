@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Balloons</title>
     <style>
-        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
         body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
         #phone-viewport { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; }
         #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; padding-top: env(safe-area-inset-top, 10px); z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
@@ -15,15 +15,55 @@
         #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
         #controls { display: flex; align-items: center; gap: 15px; }
         #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; }
-        .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: all 0.2s; }
+        .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; position: relative; }
         .nav-btn:active { opacity: 1; }
+
         .pause-balloon-icon { width: 16px; height: 16px; background-color: #33b5e5; border-radius: 50%; position: relative; box-shadow: 0 0 8px rgba(51, 181, 229, 0.6); }
         .pause-balloon-icon::after { content: ""; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); border-left: 3px solid transparent; border-right: 3px solid transparent; border-bottom: 4px solid #33b5e5; }
-        .storm-btn-text { font-size: 20px; font-weight: bold; color: #33b5e5; font-family: monospace; text-shadow: 0 0 8px rgba(51, 181, 229, 0.6); letter-spacing: -3px; margin-right: -3px; }
+
+        .wave-icon {
+            width: 16px; height: 16px; display: block;
+            filter: drop-shadow(0 0 6px rgba(51, 181, 229, 0.6));
+            transition: filter 0.15s ease-out;
+            transform: translateY(2px);
+        }
+        .wave-icon .wave-arrow {
+            fill: #33b5e5;
+            transition: fill 0.15s ease-out;
+        }
+
         .active-mode { opacity: 1 !important; }
-        .active-mode .storm-btn-text { text-shadow: 0 0 15px #33b5e5, 0 0 25px #33b5e5; }
+        .active-mode .wave-icon { filter: drop-shadow(0 0 12px #33b5e5) drop-shadow(0 0 22px #33b5e5); }
+
+        .boost-mode { opacity: 1 !important; }
+        .boost-mode .wave-icon { filter: drop-shadow(0 0 12px #00ff00) drop-shadow(0 0 22px #00ff00) !important; }
+        .boost-mode .wave-icon .wave-arrow { fill: #00ff00 !important; }
+
+        /* Надпись BETA — по центру кнопки, справа, без свечения */
+        #beta-label {
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translate(4px, -50%);
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #00ff00;
+            text-shadow: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+            white-space: nowrap;
+        }
+        #beta-label.visible {
+            opacity: 1;
+            transform: translate(6px, -50%);
+        }
+
         .balloon-container { position: absolute; width: 85px; height: 180px; cursor: pointer; animation: floatUp linear forwards; will-change: transform; z-index: 5; }
         .paused { animation-play-state: paused !important; }
+        .paused, .paused * { pointer-events: none !important; }
         .balloon { position: absolute; top: 0; left: 0; width: 85px; height: 85px; border-radius: 50%; box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4); }
         .balloon::before { content: ""; position: absolute; top: 12px; left: 12px; width: 20px; height: 12px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; transform: rotate(-30deg); }
         .balloon::after { content: ""; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid currentColor; }
@@ -41,8 +81,12 @@
                     <button id="pause-btn" class="nav-btn">
                         <div class="pause-balloon-icon"></div>
                     </button>
-                    <button id="storm-btn" class="nav-btn">
-                        <div class="storm-btn-text">&gt;&gt;</div>
+                    <button id="wave-btn" class="nav-btn">
+                        <svg class="wave-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                            <path class="wave-arrow" d="M0 0 L7 8 L0 16 Z" />
+                            <path class="wave-arrow" d="M7 0 L14 8 L7 16 Z" />
+                        </svg>
+                        <span id="beta-label">BETA</span>
                     </button>
                 </div>
                 <span id="score">0</span>
@@ -50,73 +94,333 @@
         </div>
     </div>
     <script>
-        const viewport = document.getElementById('phone-viewport'), scoreEl = document.getElementById('score'), pauseBtn = document.getElementById('pause-btn'), stormBtn = document.getElementById('storm-btn');
-        let score = 0, isPaused = false, isStormMode = false, modeChangedOnPause = false, spawnTimeout;
-        let lastColorIndex = -1, lastLeftPosition = -1;
+        const viewport = document.getElementById('phone-viewport');
+        const scoreEl = document.getElementById('score');
+        const pauseBtn = document.getElementById('pause-btn');
+        const waveBtn = document.getElementById('wave-btn');
+        const betaLabel = document.getElementById('beta-label');
+
+        let score = 0;
+        let isPaused = false;
+        let isWaveMode = false;
+        let isBoostMode = false;
+        let modeChangedOnPause = false;
+        let spawnTimeout;
+
+        // === Boost ===
+        let boostLevel = 1;
+        let boostInterval = null;
+        const BOOST_TICK_MS = 100;
+        const BOOST_MAX_TIME_MS = 70000;
+        const BOOST_START = 1.0;
+        const BOOST_END = 3.5;
+
+        let boostElapsed = 0;
+        let boostLastTick = 0;
+        let lastPopTime = 0;
+        const IDLE_THRESHOLD_MS = 2000;
+
+        const HOLD_TIME_MS = 2000;
+        let holdTimer = null;
+        let waveWasHold = false;
+
+        const BALLOON_WIDTH = 85;
+        const MIN_HORIZONTAL_GAP = 20;
+        const MIN_SPAWN_DELAY = 80;
+        const MAX_SPAWN_ATTEMPTS = 30;
+
+        const RECENT_X_MEMORY = 3;
+        const RECENT_X_MIN_DISTANCE = 60;
+        const recentXs = [];
+
         const colors = ['#ff3366', '#00ffcc', '#ffcc00', '#ff6600', '#9933ff', '#33ff33'];
-        function createBalloon() {
-            const container = document.createElement('div'), balloon = document.createElement('div'), string = document.createElement('div');
+        let lastColorIndex = -1;
+
+        const activeBalloons = new Map();
+        let nextBalloonId = 0;
+
+        function isVerticallyOverlapping(rect, myTop, myBottom) {
+            return !(rect.bottom < myTop || rect.top > myBottom);
+        }
+
+        function tryPickSafeLeft() {
+            const maxLeft = Math.max(5, viewport.clientWidth - BALLOON_WIDTH - 10);
+            const vr = viewport.getBoundingClientRect();
+
+            const newTop = vr.bottom - 180;
+            const newBottom = vr.bottom;
+
+            const blockingPositions = [];
+            activeBalloons.forEach(({ el, x }) => {
+                if (!el.isConnected) return;
+                const r = el.getBoundingClientRect();
+                if (r.bottom < vr.top - 50 || r.top > vr.bottom + 50) return;
+                if (!isVerticallyOverlapping(r, newTop, newBottom)) return;
+                blockingPositions.push(x);
+            });
+
+            for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+                const candidate = Math.random() * (maxLeft - 5) + 5;
+
+                const collidesActive = blockingPositions.some(x =>
+                    Math.abs(x - candidate) < (BALLOON_WIDTH + MIN_HORIZONTAL_GAP)
+                );
+
+                const tooCloseToRecent = recentXs.some(x =>
+                    Math.abs(x - candidate) < RECENT_X_MIN_DISTANCE
+                );
+
+                if (!collidesActive && !tooCloseToRecent) return candidate;
+            }
+
+            for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+                const candidate = Math.random() * (maxLeft - 5) + 5;
+                const collidesActive = blockingPositions.some(x =>
+                    Math.abs(x - candidate) < (BALLOON_WIDTH + MIN_HORIZONTAL_GAP)
+                );
+                if (!collidesActive) return candidate;
+            }
+
+            return Math.random() * (maxLeft - 5) + 5;
+        }
+
+        function rememberX(x) {
+            recentXs.push(x);
+            if (recentXs.length > RECENT_X_MEMORY) recentXs.shift();
+        }
+
+        function createBalloon(leftPos) {
+            const id = nextBalloonId++;
+
+            const container = document.createElement('div');
+            const balloon = document.createElement('div');
+            const string = document.createElement('div');
+
             let colorIndex = Math.floor(Math.random() * colors.length);
-            while (colorIndex === lastColorIndex) { colorIndex = Math.floor(Math.random() * colors.length); }
+            while (colorIndex === lastColorIndex) {
+                colorIndex = Math.floor(Math.random() * colors.length);
+            }
             lastColorIndex = colorIndex;
             const color = colors[colorIndex];
-            container.className = 'balloon-container'; balloon.className = 'balloon'; string.className = 'string';
-            balloon.style.backgroundColor = balloon.style.color = string.style.background = color;
-            container.appendChild(balloon); container.appendChild(string);
-            let leftPos = Math.random() * (viewport.clientWidth - 95) + 5;
-            if (lastLeftPosition !== -1 && Math.abs(leftPos - lastLeftPosition) < 70) { leftPos = (leftPos + 100) % (viewport.clientWidth - 95); if(leftPos < 5) leftPos = 5; }
-            lastLeftPosition = leftPos;
+
+            container.className = 'balloon-container';
+            balloon.className = 'balloon';
+            string.className = 'string';
+
+            balloon.style.backgroundColor = color;
+            balloon.style.color = color;
+            string.style.background = color;
+
+            container.appendChild(balloon);
+            container.appendChild(string);
+
             container.style.left = `${leftPos}px`;
-            container.style.animationDuration = isStormMode ? '3.0s' : '6.0s';
-            const pop = (e) => {
-                if (isPaused) return; 
-                e.preventDefault(); e.stopPropagation();
-                const r = container.getBoundingClientRect(), vr = viewport.getBoundingClientRect();
-                for (let i = 0; i < 12; i++) {
-                    const p = document.createElement('div'), a = (i / 12) * Math.PI * 2 + Math.random() * 0.5, d = Math.random() * 60 + 40;
-                    p.className = 'particle'; p.style.backgroundColor = color; p.style.left = `${r.left - vr.left + 42.5}px`; p.style.top = `${r.top - vr.top + 42.5}px`;
-                    p.style.setProperty('--dx', `${Math.cos(a) * d}px`); p.style.setProperty('--dy', `${Math.sin(a) * d}px`);
-                    viewport.appendChild(p); p.addEventListener('animationend', () => p.remove());
-                }
-                score++; scoreEl.textContent = score; container.remove();
+
+            activeBalloons.set(id, { el: container, x: leftPos });
+
+            let duration = 6.0;
+            if (isWaveMode) duration = 3.0;
+            if (isBoostMode) duration = 6.0 / boostLevel;
+
+            container.style.animationDuration = `${duration}s`;
+
+            const cleanup = () => {
+                activeBalloons.delete(id);
+                if (container.isConnected) container.remove();
             };
-            container.addEventListener('touchstart', pop, { passive: false }); 
-            container.addEventListener('mousedown', pop);
-            container.addEventListener('animationend', () => { if (viewport.contains(container)) container.remove(); });
+
+            const pop = (e) => {
+                if (isPaused) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                lastPopTime = performance.now();
+
+                const r = container.getBoundingClientRect();
+                const vr = viewport.getBoundingClientRect();
+                for (let i = 0; i < 12; i++) {
+                    const p = document.createElement('div');
+                    const a = (i / 12) * Math.PI * 2 + Math.random() * 0.5;
+                    const d = Math.random() * 60 + 40;
+                    p.className = 'particle';
+                    p.style.backgroundColor = color;
+                    p.style.left = `${r.left - vr.left + 42.5}px`;
+                    p.style.top = `${r.top - vr.top + 42.5}px`;
+                    p.style.setProperty('--dx', `${Math.cos(a) * d}px`);
+                    p.style.setProperty('--dy', `${Math.sin(a) * d}px`);
+                    viewport.appendChild(p);
+                    p.addEventListener('animationend', () => p.remove());
+                }
+                score++;
+                scoreEl.textContent = score;
+                cleanup();
+            };
+
+            container.addEventListener('pointerdown', pop);
+            container.addEventListener('animationend', cleanup);
+
             viewport.appendChild(container);
-            if (isPaused) { container.classList.add('paused'); }
+            if (isPaused) container.classList.add('paused');
         }
-        function gameLoop() {
+
+        function scheduleSpawn() {
             if (isPaused) return;
-            createBalloon();
-            if (isStormMode) { setTimeout(createBalloon, 150); setTimeout(createBalloon, 300); }
-            let delay = isStormMode ? (700 + Math.random() * 500) : (400 + Math.random() * 600);
-            spawnTimeout = setTimeout(gameLoop, delay);
+
+            const left = tryPickSafeLeft();
+            createBalloon(left);
+            rememberX(left);
+
+            let delay;
+            if (isBoostMode) {
+                delay = 500 / boostLevel;
+            } else if (isWaveMode) {
+                delay = 250 + Math.random() * 150;
+            } else {
+                delay = 450 + Math.random() * 200;
+            }
+
+            if (delay < MIN_SPAWN_DELAY) delay = MIN_SPAWN_DELAY;
+            spawnTimeout = setTimeout(scheduleSpawn, delay);
         }
-        function toggleStormMode() {
-            isStormMode = !isStormMode;
+
+        function resetField() {
+            activeBalloons.clear();
+            recentXs.length = 0;
             document.querySelectorAll('.balloon-container').forEach(b => b.remove());
             score = 0;
             scoreEl.textContent = score;
-            if (isStormMode) { stormBtn.classList.add('active-mode'); } 
-            else { stormBtn.classList.remove('active-mode'); }
-            if (isPaused) { modeChangedOnPause = true; } 
-            else { clearTimeout(spawnTimeout); gameLoop(); }
         }
-        stormBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggleStormMode(); });
-        stormBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleStormMode(); });
-        pauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); togglePause(); });
-        pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
+
+        // === Wave ===
+        function toggleWaveMode() {
+            if (isBoostMode) {
+                stopBoost();
+                resetField();
+                clearTimeout(spawnTimeout);
+                scheduleSpawn();
+                return;
+            }
+
+            isWaveMode = !isWaveMode;
+            resetField();
+
+            if (isWaveMode) waveBtn.classList.add('active-mode');
+            else waveBtn.classList.remove('active-mode');
+
+            if (isPaused) {
+                modeChangedOnPause = true;
+            } else {
+                clearTimeout(spawnTimeout);
+                scheduleSpawn();
+            }
+        }
+
+        // === Boost ===
+        function startBoost() {
+            isBoostMode = true;
+            isWaveMode = false;
+            boostLevel = BOOST_START;
+            boostElapsed = 0;
+            boostLastTick = performance.now();
+            lastPopTime = performance.now();
+
+            waveBtn.classList.remove('active-mode');
+            waveBtn.classList.add('boost-mode');
+
+            betaLabel.classList.add('visible');
+
+            resetField();
+
+            clearInterval(boostInterval);
+            boostInterval = setInterval(() => {
+                const now = performance.now();
+                const dt = now - boostLastTick;
+                boostLastTick = now;
+
+                const timeSinceLastPop = now - lastPopTime;
+                if (timeSinceLastPop > IDLE_THRESHOLD_MS) return;
+
+                boostElapsed += dt;
+                if (boostElapsed > BOOST_MAX_TIME_MS) boostElapsed = BOOST_MAX_TIME_MS;
+
+                const t = boostElapsed / BOOST_MAX_TIME_MS;
+                boostLevel = BOOST_START + (BOOST_END - BOOST_START) * t;
+            }, BOOST_TICK_MS);
+
+            clearTimeout(spawnTimeout);
+            scheduleSpawn();
+        }
+
+        function stopBoost() {
+            isBoostMode = false;
+            boostLevel = 1;
+            boostElapsed = 0;
+            waveBtn.classList.remove('boost-mode');
+
+            betaLabel.classList.remove('visible');
+
+            clearInterval(boostInterval);
+            boostInterval = null;
+        }
+
+        // === Кнопка Wave ===
+        waveBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            waveWasHold = false;
+
+            if (!isBoostMode) {
+                holdTimer = setTimeout(() => {
+                    waveWasHold = true;
+                    startBoost();
+                }, HOLD_TIME_MS);
+            }
+        });
+
+        waveBtn.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            clearTimeout(holdTimer);
+            if (waveWasHold) return;
+            toggleWaveMode();
+        });
+
+        waveBtn.addEventListener('pointercancel', () => clearTimeout(holdTimer));
+        waveBtn.addEventListener('pointerleave', () => clearTimeout(holdTimer));
+
+        // === Пауза ===
+        pauseBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); togglePause(); });
+
         function togglePause() {
             isPaused = !isPaused;
+
             document.querySelectorAll('.balloon-container').forEach(b => {
-                if (isPaused) b.classList.add('paused');
-                else { b.classList.add('paused'); b.offsetHeight; b.classList.remove('paused'); }
+                if (isPaused) {
+                    b.classList.add('paused');
+                } else {
+                    b.classList.add('paused');
+                    void b.offsetHeight;
+                    b.classList.remove('paused');
+                }
             });
-            if (isPaused) { pauseBtn.style.opacity = '1'; clearTimeout(spawnTimeout); } 
-            else { pauseBtn.style.opacity = '0.4'; if (modeChangedOnPause) { modeChangedOnPause = false; clearTimeout(spawnTimeout); gameLoop(); } else { spawnTimeout = setTimeout(gameLoop, 400); } }
+
+            if (isPaused) {
+                pauseBtn.style.opacity = '1';
+                clearTimeout(spawnTimeout);
+            } else {
+                pauseBtn.style.opacity = '0.4';
+                clearTimeout(spawnTimeout);
+                if (modeChangedOnPause) {
+                    modeChangedOnPause = false;
+                    scheduleSpawn();
+                } else {
+                    spawnTimeout = setTimeout(scheduleSpawn, 400);
+                }
+            }
         }
-        gameLoop();
+
+        scheduleSpawn();
     </script>
 </body>
 </html>
