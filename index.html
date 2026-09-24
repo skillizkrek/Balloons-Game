@@ -2,17 +2,15 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Balloons</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
         #phone-viewport { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; touch-action: none; }
-        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; padding-top: env(safe-area-inset-top, 10px); z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none; }
-        @media (display-mode: standalone) { #ui-wrapper { padding-top: calc(env(safe-area-inset-top, 47px) + 15px); } }
+        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none; }
         #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; pointer-events: none; }
         #controls { display: flex; align-items: center; gap: 15px; pointer-events: none; }
         #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; font-family: sans-serif; pointer-events: none; }
@@ -80,7 +78,6 @@
             transform: rotate(-30deg);
             pointer-events: none;
         }
-        /* Горлышко */
         .balloon::after {
             content: "";
             position: absolute;
@@ -94,7 +91,6 @@
             pointer-events: none;
         }
 
-        /* Хитбокс — выше UI-панели, ловит тапы даже если шарик под UI */
         .balloon-hitbox {
             position: absolute;
             top: -12px;
@@ -105,7 +101,7 @@
             background: transparent;
             pointer-events: auto;
             cursor: pointer;
-            touch-action: manipulation;
+            touch-action: none;
             z-index: 30;
         }
 
@@ -163,6 +159,13 @@
         let BALLOON_WIDTH = 85;
         const HITBOX_EXTRA = 12;
         const MAX_ACTIVE = 3;
+
+        let TOP_KILL_ZONE = 120;
+
+        function updateKillZone() {
+            const uiHeight = document.getElementById('ui-wrapper').offsetHeight;
+            TOP_KILL_ZONE = uiHeight + 60;
+        }
 
         let prevX = -1;
 
@@ -249,8 +252,8 @@
         // === Логика ===
         function updateSizes() {
             const W = viewport.clientWidth;
-            // БОЛЬШИЕ шарики — 24% от ширины экрана, мин 75, макс 130
             BALLOON_WIDTH = Math.max(75, Math.min(130, Math.round(W * 0.24)));
+            updateKillZone();
         }
 
         window.addEventListener('resize', updateSizes);
@@ -387,6 +390,18 @@
 
             setTimeout(cleanup, duration * 1000 + 200);
 
+            const monitor = setInterval(() => {
+                if (cleanedUp) {
+                    clearInterval(monitor);
+                    return;
+                }
+                const r = container.getBoundingClientRect();
+                if (r.bottom < TOP_KILL_ZONE) {
+                    clearInterval(monitor);
+                    cleanup();
+                }
+            }, 100);
+
             if (isPaused) container.classList.add('paused');
         }
 
@@ -451,7 +466,6 @@
         waveBtn.addEventListener('touchstart', waveTap, { passive: false });
         waveBtn.addEventListener('pointerdown', waveTap);
 
-        // === ПАУЗА ===
         let pauseBusy = false;
 
         function pauseTap(e) {
@@ -501,3 +515,4 @@
     </script>
 </body>
 </html>
+
