@@ -60,12 +60,15 @@
         .paused { animation-play-state: paused !important; }
         .paused, .paused * { pointer-events: none !important; }
 
+        /* Шарик — сам ловит тапы */
         .balloon {
             position: absolute;
             top: 0; left: 0;
             width: 85px; height: 85px;
             border-radius: 50%;
-            pointer-events: none;
+            pointer-events: auto;
+            cursor: pointer;
+            touch-action: none;
             box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4);
         }
         .balloon::before {
@@ -89,20 +92,6 @@
             background: currentColor;
             clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
             pointer-events: none;
-        }
-
-        .balloon-hitbox {
-            position: absolute;
-            top: -12px;
-            left: -12px;
-            width: 109px;
-            height: 109px;
-            border-radius: 50%;
-            background: transparent;
-            pointer-events: auto;
-            cursor: pointer;
-            touch-action: none;
-            z-index: 30;
         }
 
         @keyframes floatUp {
@@ -157,15 +146,7 @@
         let spawnTimeout;
 
         let BALLOON_WIDTH = 85;
-        const HITBOX_EXTRA = 12;
         const MAX_ACTIVE = 3;
-
-        let TOP_KILL_ZONE = 120;
-
-        function updateKillZone() {
-            const uiHeight = document.getElementById('ui-wrapper').offsetHeight;
-            TOP_KILL_ZONE = uiHeight + 60;
-        }
 
         let prevX = -1;
 
@@ -252,8 +233,8 @@
         // === Логика ===
         function updateSizes() {
             const W = viewport.clientWidth;
-            BALLOON_WIDTH = Math.max(75, Math.min(130, Math.round(W * 0.24)));
-            updateKillZone();
+            // МЕНЬШИЕ шарики — как было
+            BALLOON_WIDTH = Math.max(55, Math.min(100, Math.round(W * 0.17)));
         }
 
         window.addEventListener('resize', updateSizes);
@@ -294,7 +275,6 @@
 
             const container = document.createElement('div');
             const balloon = document.createElement('div');
-            const hitbox = document.createElement('div');
 
             let colorIndex = Math.floor(Math.random() * colors.length);
             while (colorIndex === lastColorIndex) {
@@ -305,26 +285,18 @@
 
             container.className = 'balloon-container';
             balloon.className = 'balloon';
-            hitbox.className = 'balloon-hitbox';
 
             balloon.style.backgroundColor = color;
             balloon.style.color = color;
 
             const w = BALLOON_WIDTH;
-            const hitboxSize = w + HITBOX_EXTRA * 2;
 
             balloon.style.width = w + 'px';
             balloon.style.height = w + 'px';
 
-            hitbox.style.width = hitboxSize + 'px';
-            hitbox.style.height = hitboxSize + 'px';
-            hitbox.style.left = (-HITBOX_EXTRA) + 'px';
-            hitbox.style.top = (-HITBOX_EXTRA) + 'px';
-
             container.style.width = w + 'px';
             container.style.height = (w + 15) + 'px';
 
-            container.appendChild(hitbox);
             container.appendChild(balloon);
 
             container.style.left = `${leftPos}px`;
@@ -378,8 +350,9 @@
                 cleanup();
             };
 
-            hitbox.addEventListener('touchstart', popHandler, { passive: false });
-            hitbox.addEventListener('pointerdown', popHandler);
+            // Ловит тапы ТОЛЬКО сам шарик
+            balloon.addEventListener('touchstart', popHandler, { passive: false });
+            balloon.addEventListener('pointerdown', popHandler);
 
             container.addEventListener('animationend', cleanup);
 
@@ -389,18 +362,6 @@
             container.style.animation = `floatUp ${duration}s linear forwards`;
 
             setTimeout(cleanup, duration * 1000 + 200);
-
-            const monitor = setInterval(() => {
-                if (cleanedUp) {
-                    clearInterval(monitor);
-                    return;
-                }
-                const r = container.getBoundingClientRect();
-                if (r.bottom < TOP_KILL_ZONE) {
-                    clearInterval(monitor);
-                    cleanup();
-                }
-            }, 100);
 
             if (isPaused) container.classList.add('paused');
         }
