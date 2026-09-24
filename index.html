@@ -147,6 +147,12 @@
         let BALLOON_WIDTH = 85;
         const MAX_ACTIVE = 3;
 
+        // === ПАМЯТЬ ПОСЛЕДНИХ X — чтобы не было повторов и ниток ===
+        const lastXs = [];
+        const LAST_X_MEMORY = 4;
+        const MIN_GAP_FROM_LAST = 25;      // минимальная разница по X от последних
+        const MIN_GAP_FROM_ACTIVE = 15;    // минимальная разница по X от активных
+
         // === АУДИО ===
         let audioCtx = null;
 
@@ -243,11 +249,69 @@
         const activeBalloons = new Map();
         let nextBalloonId = 0;
 
-        // === ПРОСТОЙ РАНДОМ ===
+        // === РАНДОМ БЕЗ ПОВТОРОВ И НИТОК ===
         function pickRandomX() {
             const W = viewport.clientWidth;
             const maxX = W - BALLOON_WIDTH;
-            return Math.random() * maxX;
+
+            // Собираем X активных шариков
+            const activeXs = [];
+            activeBalloons.forEach(({ el, x }) => {
+                if (!el.isConnected) return;
+                activeXs.push(x);
+            });
+
+            // Пытаемся 20 раз найти свободный X
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const candidate = Math.random() * maxX;
+
+                // Не близко к активным
+                let ok = true;
+                for (const ax of activeXs) {
+                    if (Math.abs(ax - candidate) < BALLOON_WIDTH + MIN_GAP_FROM_ACTIVE) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+
+                // Не близко к последним 4
+                for (const lx of lastXs) {
+                    if (Math.abs(lx - candidate) < BALLOON_WIDTH + MIN_GAP_FROM_LAST) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+
+                return candidate;
+            }
+
+            // Не нашли — берём самый далёкий от активных
+            let bestX = Math.random() * maxX;
+            let bestScore = -1;
+            for (let i = 0; i < 30; i++) {
+                const candidate = Math.random() * maxX;
+                let minDist = Infinity;
+                for (const ax of activeXs) {
+                    const d = Math.abs(ax - candidate);
+                    if (d < minDist) minDist = d;
+                }
+                for (const lx of lastXs) {
+                    const d = Math.abs(lx - candidate);
+                    if (d < minDist) minDist = d;
+                }
+                if (minDist > bestScore) {
+                    bestScore = minDist;
+                    bestX = candidate;
+                }
+            }
+            return bestX;
+        }
+
+        function rememberX(x) {
+            lastXs.push(x);
+            if (lastXs.length > LAST_X_MEMORY) lastXs.shift();
         }
 
         function createBalloon(leftPos) {
@@ -283,7 +347,7 @@
 
             activeBalloons.set(id, { el: container, x: leftPos });
 
-            const duration = isWaveMode ? 2.0 : 6.0;
+            const duration = isWaveMode ? 2.5 : 6.0;
 
             let cleanedUp = false;
 
@@ -330,15 +394,24 @@
                 cleanup();
             };
 
+            container.addEventListener('touchstart', popHandler, { passive: false });
             container.addEventListener('pointerdown', popHandler);
-
-            container.addEventListener('animationend', cleanup);
 
             container.style.animation = `floatUp ${duration}s linear forwards`;
             void container.offsetHeight;
             viewport.appendChild(container);
 
-            setTimeout(cleanup, duration * 1000 + 200);
+            const monitor = setInterval(() => {
+                if (cleanedUp) {
+                    clearInterval(monitor);
+                    return;
+                }
+                const r = container.getBoundingClientRect();
+                if (r.bottom < 0) {
+                    clearInterval(monitor);
+                    cleanup();
+                }
+            }, 200);
 
             if (isPaused) container.classList.add('paused');
         }
@@ -353,10 +426,11 @@
 
             const left = pickRandomX();
             createBalloon(left);
+            rememberX(left);
 
             let delay;
             if (isWaveMode) {
-                delay = 150 + Math.random() * 100;
+                delay = 180 + Math.random() * 120;
             } else {
                 delay = 600 + Math.random() * 200;
             }
@@ -366,6 +440,7 @@
 
         function resetField() {
             activeBalloons.clear();
+            lastXs.length = 0;
             document.querySelectorAll('.balloon-container').forEach(b => b.remove());
             score = 0;
             scoreEl.textContent = score;
