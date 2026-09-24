@@ -147,8 +147,6 @@
         let BALLOON_WIDTH = 85;
         const MAX_ACTIVE = 3;
 
-        let prevX = -1;
-
         // === АУДИО ===
         let audioCtx = null;
 
@@ -245,27 +243,11 @@
         const activeBalloons = new Map();
         let nextBalloonId = 0;
 
+        // === ПРОСТОЙ РАНДОМ ===
         function pickRandomX() {
             const W = viewport.clientWidth;
             const maxX = W - BALLOON_WIDTH;
-
-            if (prevX < 0) {
-                const x = Math.random() * maxX;
-                prevX = x;
-                return x;
-            }
-
-            for (let i = 0; i < 10; i++) {
-                const x = Math.random() * maxX;
-                if (Math.abs(x - prevX) > BALLOON_WIDTH + 20) {
-                    prevX = x;
-                    return x;
-                }
-            }
-
-            const fallback = Math.random() * maxX;
-            prevX = fallback;
-            return fallback;
+            return Math.random() * maxX;
         }
 
         function createBalloon(leftPos) {
@@ -301,7 +283,6 @@
 
             activeBalloons.set(id, { el: container, x: leftPos });
 
-            // Wave чуть медленнее — 2.0с вместо 1.6с, чтобы Safari успевал
             const duration = isWaveMode ? 2.0 : 6.0;
 
             let cleanedUp = false;
@@ -349,15 +330,10 @@
                 cleanup();
             };
 
-            // ТРИ типа событий — что сработает первым, то и лопнет
-            container.addEventListener('touchstart', popHandler, { passive: false });
-            container.addEventListener('touchend', popHandler, { passive: false });
             container.addEventListener('pointerdown', popHandler);
-            container.addEventListener('pointerup', popHandler);
 
             container.addEventListener('animationend', cleanup);
 
-            // Анимацию задаём ДО вставки в DOM
             container.style.animation = `floatUp ${duration}s linear forwards`;
             void container.offsetHeight;
             viewport.appendChild(container);
@@ -390,7 +366,6 @@
 
         function resetField() {
             activeBalloons.clear();
-            prevX = -1;
             document.querySelectorAll('.balloon-container').forEach(b => b.remove());
             score = 0;
             scoreEl.textContent = score;
@@ -425,7 +400,6 @@
             toggleWaveMode();
         }
 
-        waveBtn.addEventListener('touchstart', waveTap, { passive: false });
         waveBtn.addEventListener('pointerdown', waveTap);
 
         let pauseBusy = false;
@@ -442,7 +416,6 @@
             togglePause();
         }
 
-        pauseBtn.addEventListener('touchstart', pauseTap, { passive: false });
         pauseBtn.addEventListener('pointerdown', pauseTap);
 
         function togglePause() {
