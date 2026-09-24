@@ -2,19 +2,21 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Balloons</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
         #phone-viewport { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; touch-action: none; }
-        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none; }
-        #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; pointer-events: none; }
-        #controls { display: flex; align-items: center; gap: 15px; pointer-events: none; }
-        #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; font-family: sans-serif; pointer-events: none; }
-        .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; position: relative; -webkit-tap-highlight-color: transparent; pointer-events: auto; }
+        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; padding-top: env(safe-area-inset-top, 10px); z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        @media (display-mode: standalone) { #ui-wrapper { padding-top: calc(env(safe-area-inset-top, 47px) + 15px); } }
+        #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+        #controls { display: flex; align-items: center; gap: 15px; }
+        #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; font-family: sans-serif; }
+        .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; position: relative; -webkit-tap-highlight-color: transparent; }
         .nav-btn:active { opacity: 1; }
 
         .pause-balloon-icon { width: 16px; height: 16px; background-color: #33b5e5; border-radius: 50%; position: relative; box-shadow: 0 0 8px rgba(51, 181, 229, 0.6); }
@@ -51,13 +53,12 @@
 
         .balloon-container {
             position: absolute;
-            width: 85px;
-            height: 100px;
-            z-index: 5;
-            pointer-events: auto;
             cursor: pointer;
-            touch-action: manipulation;
+            animation: floatUp linear forwards;
+            will-change: transform;
+            z-index: 5;
             -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         .paused { animation-play-state: paused !important; }
         .paused, .paused * { pointer-events: none !important; }
@@ -67,37 +68,44 @@
             top: 0; left: 0;
             width: 85px; height: 85px;
             border-radius: 50%;
-            pointer-events: none;
-            box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4);
+            box-shadow:
+                inset -8px -8px 15px rgba(0,0,0,0.3),
+                inset 8px 8px 15px rgba(255,255,255,0.4);
+            overflow: hidden;
+            z-index: 2;
         }
+
+        /* Блик сверху-слева */
         .balloon::before {
             content: "";
             position: absolute;
-            top: 14%; left: 14%;
-            width: 24%; height: 14%;
+            top: 14%;
+            left: 14%;
+            width: 24%;
+            height: 14%;
             background: rgba(255, 255, 255, 0.5);
             border-radius: 50%;
             transform: rotate(-30deg);
             pointer-events: none;
         }
-        .balloon::after {
-            content: "";
+
+        /* Узелок — снаружи шарика, под ним, средний размер */
+        .knot {
             position: absolute;
-            bottom: -8%;
             left: 50%;
             transform: translateX(-50%);
-            width: 14%;
-            height: 10%;
-            background: currentColor;
-            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+            width: 0; height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 12px solid currentColor;
+            z-index: 1;
             pointer-events: none;
         }
 
         @keyframes floatUp {
             0%   { transform: translate3d(0, 102vh, 0); }
-            100% { transform: translate3d(0, -250px, 0); }
+            100% { transform: translate3d(0, -200px, 0); }
         }
-
         .particle {
             position: absolute;
             width: 8px; height: 8px; border-radius: 50%;
@@ -125,7 +133,7 @@
                             <path class="wave-arrow" d="M0 0 L7 8 L0 16 Z" />
                             <path class="wave-arrow" d="M7 0 L14 8 L7 16 Z" />
                         </svg>
-                        <span class="beta-label">Beta 1.0</span>
+                        <span class="beta-label">Alpha 1.0</span>
                     </button>
                 </div>
                 <span id="score">0</span>
@@ -145,173 +153,72 @@
         let spawnTimeout;
 
         let BALLOON_WIDTH = 85;
-        const MAX_ACTIVE = 3;
+        let MIN_HORIZONTAL_GAP = 50;
+        let MIN_SPAWN_DELAY = 150;
+        const MAX_SPAWN_ATTEMPTS = 40;
+        const RECENT_X_MEMORY = 4;
+        let RECENT_X_MIN_DISTANCE = 80;
+        const recentXs = [];
 
-        // === ПАМЯТЬ ПОСЛЕДНИХ X — чтобы не было повторов и ниток ===
-        const lastXs = [];
-        const LAST_X_MEMORY = 4;
-        const MIN_GAP_FROM_LAST = 25;      // минимальная разница по X от последних
-        const MIN_GAP_FROM_ACTIVE = 15;    // минимальная разница по X от активных
+        const MAX_ACTIVE_BALLOONS = 16;
 
-        // === АУДИО ===
-        let audioCtx = null;
-
-        function initAudio() {
-            if (audioCtx) return;
-            try {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new Ctx();
-            } catch (e) {
-                audioCtx = null;
-            }
-        }
-
-        function unlockAudio() {
-            initAudio();
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-
-        function playClick() {
-            if (!audioCtx) return;
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-
-            const now = audioCtx.currentTime;
-
-            const noiseLen = Math.floor(audioCtx.sampleRate * 0.008);
-            const buf = audioCtx.createBuffer(1, noiseLen, audioCtx.sampleRate);
-            const d = buf.getChannelData(0);
-            for (let i = 0; i < noiseLen; i++) {
-                const t = i / noiseLen;
-                d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 5);
-            }
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buf;
-
-            const noiseFilter = audioCtx.createBiquadFilter();
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.value = 3500;
-            noiseFilter.Q.value = 1.0;
-
-            const noiseGain = audioCtx.createGain();
-            noiseGain.gain.setValueAtTime(0.5, now);
-            noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.01);
-
-            noise.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(audioCtx.destination);
-            noise.start(now);
-            noise.stop(now + 0.015);
-
-            const osc1 = audioCtx.createOscillator();
-            const gain1 = audioCtx.createGain();
-            osc1.type = 'triangle';
-            osc1.frequency.setValueAtTime(900, now);
-            osc1.frequency.exponentialRampToValueAtTime(500, now + 0.015);
-            gain1.gain.setValueAtTime(0.0001, now);
-            gain1.gain.exponentialRampToValueAtTime(0.3, now + 0.001);
-            gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
-            osc1.connect(gain1);
-            gain1.connect(audioCtx.destination);
-            osc1.start(now);
-            osc1.stop(now + 0.025);
-
-            const osc2 = audioCtx.createOscillator();
-            const gain2 = audioCtx.createGain();
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(1800, now);
-            gain2.gain.setValueAtTime(0.0001, now);
-            gain2.gain.exponentialRampToValueAtTime(0.08, now + 0.001);
-            gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.012);
-            osc2.connect(gain2);
-            gain2.connect(audioCtx.destination);
-            osc2.start(now);
-            osc2.stop(now + 0.015);
-        }
-
-        document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
-        document.addEventListener('pointerdown', unlockAudio, { once: true });
-
-        // === Логика ===
         function updateSizes() {
             const W = viewport.clientWidth;
-            BALLOON_WIDTH = Math.max(55, Math.min(100, Math.round(W * 0.17)));
+            BALLOON_WIDTH = Math.max(60, Math.min(110, Math.round(W * 0.18)));
+            MIN_HORIZONTAL_GAP = Math.max(40, Math.round(W * 0.13));
+            RECENT_X_MIN_DISTANCE = Math.round(W * 0.22);
         }
 
         window.addEventListener('resize', updateSizes);
         window.addEventListener('orientationchange', () => setTimeout(updateSizes, 200));
         updateSizes();
 
-        const colors = ['#ff2a2a', '#33b5e5', '#ffcc00', '#ff6600', '#9933ff', '#33ff33'];
+        const colors = ['#ff3366', '#00ffcc', '#ffcc00', '#ff6600', '#9933ff', '#33ff33'];
         let lastColorIndex = -1;
 
         const activeBalloons = new Map();
         let nextBalloonId = 0;
 
-        // === РАНДОМ БЕЗ ПОВТОРОВ И НИТОК ===
-        function pickRandomX() {
-            const W = viewport.clientWidth;
-            const maxX = W - BALLOON_WIDTH;
+        function tryPickSafeLeft() {
+            const maxLeft = Math.max(5, viewport.clientWidth - BALLOON_WIDTH - 10);
+            const vr = viewport.getBoundingClientRect();
 
-            // Собираем X активных шариков
-            const activeXs = [];
+            const occupiedPositions = [];
             activeBalloons.forEach(({ el, x }) => {
                 if (!el.isConnected) return;
-                activeXs.push(x);
+                const r = el.getBoundingClientRect();
+                if (r.bottom < vr.top - 150 || r.top > vr.bottom + 150) return;
+                occupiedPositions.push(x);
             });
 
-            // Пытаемся 20 раз найти свободный X
-            for (let attempt = 0; attempt < 20; attempt++) {
-                const candidate = Math.random() * maxX;
+            for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+                const candidate = Math.random() * (maxLeft - 5) + 5;
 
-                // Не близко к активным
-                let ok = true;
-                for (const ax of activeXs) {
-                    if (Math.abs(ax - candidate) < BALLOON_WIDTH + MIN_GAP_FROM_ACTIVE) {
-                        ok = false;
-                        break;
-                    }
-                }
-                if (!ok) continue;
+                const collides = occupiedPositions.some(x =>
+                    Math.abs(x - candidate) < (BALLOON_WIDTH + MIN_HORIZONTAL_GAP)
+                );
 
-                // Не близко к последним 4
-                for (const lx of lastXs) {
-                    if (Math.abs(lx - candidate) < BALLOON_WIDTH + MIN_GAP_FROM_LAST) {
-                        ok = false;
-                        break;
-                    }
-                }
-                if (!ok) continue;
+                const tooClose = recentXs.some(x =>
+                    Math.abs(x - candidate) < RECENT_X_MIN_DISTANCE
+                );
 
-                return candidate;
+                if (!collides && !tooClose) return candidate;
             }
 
-            // Не нашли — берём самый далёкий от активных
-            let bestX = Math.random() * maxX;
-            let bestScore = -1;
-            for (let i = 0; i < 30; i++) {
-                const candidate = Math.random() * maxX;
-                let minDist = Infinity;
-                for (const ax of activeXs) {
-                    const d = Math.abs(ax - candidate);
-                    if (d < minDist) minDist = d;
-                }
-                for (const lx of lastXs) {
-                    const d = Math.abs(lx - candidate);
-                    if (d < minDist) minDist = d;
-                }
-                if (minDist > bestScore) {
-                    bestScore = minDist;
-                    bestX = candidate;
-                }
+            for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+                const candidate = Math.random() * (maxLeft - 5) + 5;
+                const collides = occupiedPositions.some(x =>
+                    Math.abs(x - candidate) < (BALLOON_WIDTH + MIN_HORIZONTAL_GAP)
+                );
+                if (!collides) return candidate;
             }
-            return bestX;
+
+            return null;
         }
 
         function rememberX(x) {
-            lastXs.push(x);
-            if (lastXs.length > LAST_X_MEMORY) lastXs.shift();
+            recentXs.push(x);
+            if (recentXs.length > RECENT_X_MEMORY) recentXs.shift();
         }
 
         function createBalloon(leftPos) {
@@ -319,6 +226,7 @@
 
             const container = document.createElement('div');
             const balloon = document.createElement('div');
+            const knot = document.createElement('div');
 
             let colorIndex = Math.floor(Math.random() * colors.length);
             while (colorIndex === lastColorIndex) {
@@ -329,31 +237,34 @@
 
             container.className = 'balloon-container';
             balloon.className = 'balloon';
+            knot.className = 'knot';
 
             balloon.style.backgroundColor = color;
-            balloon.style.color = color;
+            knot.style.color = color;
 
-            const w = BALLOON_WIDTH;
+            balloon.style.width = BALLOON_WIDTH + 'px';
+            balloon.style.height = BALLOON_WIDTH + 'px';
 
-            balloon.style.width = w + 'px';
-            balloon.style.height = w + 'px';
+            // Контейнер = ровно размер шарика + узелок (без нитки)
+            // Хитбокс = контейнер, но нам нужен клик только по шарику
+            const knotHeight = Math.round(BALLOON_WIDTH * 0.14); // ~12px при 85
+            container.style.width = BALLOON_WIDTH + 'px';
+            container.style.height = (BALLOON_WIDTH + knotHeight) + 'px';
 
-            container.style.width = w + 'px';
-            container.style.height = (w + 15) + 'px';
+            // Узелок точно под шариком
+            knot.style.top = BALLOON_WIDTH + 'px';
 
             container.appendChild(balloon);
+            container.appendChild(knot);
 
             container.style.left = `${leftPos}px`;
 
             activeBalloons.set(id, { el: container, x: leftPos });
 
             const duration = isWaveMode ? 2.5 : 6.0;
-
-            let cleanedUp = false;
+            container.style.animationDuration = `${duration}s`;
 
             const cleanup = () => {
-                if (cleanedUp) return;
-                cleanedUp = true;
                 activeBalloons.delete(id);
                 if (container.isConnected) container.remove();
             };
@@ -364,17 +275,27 @@
                 if (popped) return;
                 if (isPaused) return;
 
+                // Клик только по шарику (не по узелку)
+                const rect = balloon.getBoundingClientRect();
+                const x = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+                const y = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
+                // Радиус круга
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const r = rect.width / 2;
+                const dx = x - cx;
+                const dy = y - cy;
+                if (dx * dx + dy * dy > r * r) return; // клик мимо шарика — игнор
+
                 popped = true;
 
                 e.preventDefault();
                 e.stopPropagation();
 
-                unlockAudio();
-                playClick();
-
-                const r = container.getBoundingClientRect();
+                const r2 = container.getBoundingClientRect();
                 const vr = viewport.getBoundingClientRect();
-                const cx = BALLOON_WIDTH / 2;
+                const half = BALLOON_WIDTH / 2;
 
                 for (let i = 0; i < 12; i++) {
                     const p = document.createElement('div');
@@ -382,8 +303,8 @@
                     const d = Math.random() * 60 + 40;
                     p.className = 'particle';
                     p.style.backgroundColor = color;
-                    p.style.left = `${r.left - vr.left + cx}px`;
-                    p.style.top = `${r.top - vr.top + cx}px`;
+                    p.style.left = `${r2.left - vr.left + half}px`;
+                    p.style.top = `${r2.top - vr.top + half}px`;
                     p.style.setProperty('--dx', `${Math.cos(a) * d}px`);
                     p.style.setProperty('--dy', `${Math.sin(a) * d}px`);
                     viewport.appendChild(p);
@@ -394,53 +315,47 @@
                 cleanup();
             };
 
-            container.addEventListener('touchstart', popHandler, { passive: false });
-            container.addEventListener('pointerdown', popHandler);
+            // Слушаем на balloon, а не на container — хитбокс = сам шарик
+            balloon.addEventListener('touchstart', popHandler, { passive: false });
+            balloon.addEventListener('pointerdown', popHandler);
+            container.addEventListener('animationend', cleanup);
 
-            container.style.animation = `floatUp ${duration}s linear forwards`;
-            void container.offsetHeight;
             viewport.appendChild(container);
-
-            const monitor = setInterval(() => {
-                if (cleanedUp) {
-                    clearInterval(monitor);
-                    return;
-                }
-                const r = container.getBoundingClientRect();
-                if (r.bottom < 0) {
-                    clearInterval(monitor);
-                    cleanup();
-                }
-            }, 200);
-
             if (isPaused) container.classList.add('paused');
         }
 
         function scheduleSpawn() {
             if (isPaused) return;
 
-            if (activeBalloons.size >= MAX_ACTIVE) {
-                spawnTimeout = setTimeout(scheduleSpawn, 200);
+            if (activeBalloons.size >= MAX_ACTIVE_BALLOONS) {
+                spawnTimeout = setTimeout(scheduleSpawn, 250);
                 return;
             }
 
-            const left = pickRandomX();
+            const left = tryPickSafeLeft();
+
+            if (left === null) {
+                spawnTimeout = setTimeout(scheduleSpawn, 150);
+                return;
+            }
+
             createBalloon(left);
             rememberX(left);
 
             let delay;
             if (isWaveMode) {
-                delay = 180 + Math.random() * 120;
+                delay = 200 + Math.random() * 120;
             } else {
-                delay = 600 + Math.random() * 200;
+                delay = 450 + Math.random() * 200;
             }
 
+            if (delay < MIN_SPAWN_DELAY) delay = MIN_SPAWN_DELAY;
             spawnTimeout = setTimeout(scheduleSpawn, delay);
         }
 
         function resetField() {
             activeBalloons.clear();
-            lastXs.length = 0;
+            recentXs.length = 0;
             document.querySelectorAll('.balloon-container').forEach(b => b.remove());
             score = 0;
             scoreEl.textContent = score;
@@ -471,10 +386,10 @@
             waveBusy = true;
             setTimeout(() => { waveBusy = false; }, 350);
 
-            unlockAudio();
             toggleWaveMode();
         }
 
+        waveBtn.addEventListener('touchstart', waveTap, { passive: false });
         waveBtn.addEventListener('pointerdown', waveTap);
 
         let pauseBusy = false;
@@ -487,10 +402,10 @@
             pauseBusy = true;
             setTimeout(() => { pauseBusy = false; }, 350);
 
-            unlockAudio();
             togglePause();
         }
 
+        pauseBtn.addEventListener('touchstart', pauseTap, { passive: false });
         pauseBtn.addEventListener('pointerdown', pauseTap);
 
         function togglePause() {
@@ -516,7 +431,7 @@
                     modeChangedOnPause = false;
                     scheduleSpawn();
                 } else {
-                    spawnTimeout = setTimeout(scheduleSpawn, 300);
+                    spawnTimeout = setTimeout(scheduleSpawn, 400);
                 }
             }
         }
