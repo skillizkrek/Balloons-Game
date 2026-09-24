@@ -11,12 +11,12 @@
         html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
         #phone-viewport { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; touch-action: none; }
-        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; padding-top: env(safe-area-inset-top, 10px); z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; background-color: #000; padding-top: env(safe-area-inset-top, 10px); z-index: 20; border-bottom: 2px solid #33b5e5; box-shadow: 0 4px 20px rgba(0,0,0,0.5); pointer-events: none; }
         @media (display-mode: standalone) { #ui-wrapper { padding-top: calc(env(safe-area-inset-top, 47px) + 15px); } }
-        #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
-        #controls { display: flex; align-items: center; gap: 15px; }
-        #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; font-family: sans-serif; }
-        .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; position: relative; -webkit-tap-highlight-color: transparent; }
+        #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; pointer-events: none; }
+        #controls { display: flex; align-items: center; gap: 15px; pointer-events: none; }
+        #score { color: #33b5e5; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px rgba(51, 181, 229, 0.8); line-height: 1; font-family: sans-serif; pointer-events: none; }
+        .nav-btn { background: none; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; position: relative; -webkit-tap-highlight-color: transparent; pointer-events: auto; }
         .nav-btn:active { opacity: 1; }
 
         .pause-balloon-icon { width: 16px; height: 16px; background-color: #33b5e5; border-radius: 50%; position: relative; box-shadow: 0 0 8px rgba(51, 181, 229, 0.6); }
@@ -80,7 +80,7 @@
             transform: rotate(-30deg);
             pointer-events: none;
         }
-        /* Горлышко — чуть выше, ближе к шару */
+        /* Горлышко */
         .balloon::after {
             content: "";
             position: absolute;
@@ -94,21 +94,24 @@
             pointer-events: none;
         }
 
+        /* Хитбокс — выше UI-панели, ловит тапы даже если шарик под UI */
         .balloon-hitbox {
             position: absolute;
-            top: -10px;
-            left: -10px;
-            width: 85px; height: 85px;
+            top: -12px;
+            left: -12px;
+            width: 109px;
+            height: 109px;
             border-radius: 50%;
             background: transparent;
             pointer-events: auto;
             cursor: pointer;
             touch-action: manipulation;
+            z-index: 30;
         }
 
         @keyframes floatUp {
             0%   { transform: translate3d(0, 102vh, 0); }
-            100% { transform: translate3d(0, -200px, 0); }
+            100% { transform: translate3d(0, -250px, 0); }
         }
 
         .particle {
@@ -158,7 +161,7 @@
         let spawnTimeout;
 
         let BALLOON_WIDTH = 85;
-        const HITBOX_EXTRA = 10;
+        const HITBOX_EXTRA = 12;
         const MAX_ACTIVE = 3;
 
         let prevX = -1;
@@ -246,6 +249,7 @@
         // === Логика ===
         function updateSizes() {
             const W = viewport.clientWidth;
+            // БОЛЬШИЕ шарики — 24% от ширины экрана, мин 75, макс 130
             BALLOON_WIDTH = Math.max(75, Math.min(130, Math.round(W * 0.24)));
         }
 
