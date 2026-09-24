@@ -49,13 +49,12 @@
             white-space: nowrap;
         }
 
-        /* Контейнер ЛОВИТ тапы — как в самой первой версии */
         .balloon-container {
             position: absolute;
             width: 85px;
             height: 100px;
             z-index: 5;
-            pointer-events: auto;         /* ЛОВИТ ТАПЫ */
+            pointer-events: auto;
             cursor: pointer;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
@@ -302,7 +301,8 @@
 
             activeBalloons.set(id, { el: container, x: leftPos });
 
-            const duration = isWaveMode ? 1.6 : 6.0;
+            // Wave чуть медленнее — 2.0с вместо 1.6с, чтобы Safari успевал
+            const duration = isWaveMode ? 2.0 : 6.0;
 
             let cleanedUp = false;
 
@@ -349,16 +349,18 @@
                 cleanup();
             };
 
-            // Контейнер ловит тапы — как в самой первой версии
+            // ТРИ типа событий — что сработает первым, то и лопнет
             container.addEventListener('touchstart', popHandler, { passive: false });
+            container.addEventListener('touchend', popHandler, { passive: false });
             container.addEventListener('pointerdown', popHandler);
+            container.addEventListener('pointerup', popHandler);
 
             container.addEventListener('animationend', cleanup);
 
-            viewport.appendChild(container);
-
-            void container.offsetHeight;
+            // Анимацию задаём ДО вставки в DOM
             container.style.animation = `floatUp ${duration}s linear forwards`;
+            void container.offsetHeight;
+            viewport.appendChild(container);
 
             setTimeout(cleanup, duration * 1000 + 200);
 
@@ -475,4 +477,3 @@
     </script>
 </body>
 </html>
-
