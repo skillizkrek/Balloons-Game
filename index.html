@@ -49,26 +49,26 @@
             white-space: nowrap;
         }
 
+        /* Контейнер ЛОВИТ тапы — как в самой первой версии */
         .balloon-container {
             position: absolute;
             width: 85px;
             height: 100px;
             z-index: 5;
-            pointer-events: none;
+            pointer-events: auto;         /* ЛОВИТ ТАПЫ */
+            cursor: pointer;
+            touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
         .paused { animation-play-state: paused !important; }
         .paused, .paused * { pointer-events: none !important; }
 
-        /* Шарик — сам ловит тапы */
         .balloon {
             position: absolute;
             top: 0; left: 0;
             width: 85px; height: 85px;
             border-radius: 50%;
-            pointer-events: auto;
-            cursor: pointer;
-            touch-action: none;
+            pointer-events: none;
             box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4);
         }
         .balloon::before {
@@ -233,7 +233,6 @@
         // === Логика ===
         function updateSizes() {
             const W = viewport.clientWidth;
-            // МЕНЬШИЕ шарики — как было
             BALLOON_WIDTH = Math.max(55, Math.min(100, Math.round(W * 0.17)));
         }
 
@@ -350,9 +349,9 @@
                 cleanup();
             };
 
-            // Ловит тапы ТОЛЬКО сам шарик
-            balloon.addEventListener('touchstart', popHandler, { passive: false });
-            balloon.addEventListener('pointerdown', popHandler);
+            // Контейнер ловит тапы — как в самой первой версии
+            container.addEventListener('touchstart', popHandler, { passive: false });
+            container.addEventListener('pointerdown', popHandler);
 
             container.addEventListener('animationend', cleanup);
 
