@@ -14,6 +14,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap" rel="stylesheet">
 
     <style>
+        @font-face {
+            font-family: 'Roboto';
+            src: url('Roboto-Regular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
         html, body {
             margin: 0;
             padding: 0;
@@ -23,20 +31,34 @@
             -webkit-text-size-adjust: 100%;
             -webkit-user-select: none;
             user-select: none;
+            background: #000;
         }
 
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
 
-        body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+        }
 
         #phone-viewport {
             position: relative;
             width: 100vw;
             height: 100vh;
-            background: radial-gradient(circle at center, #07084f 0%, #02031c 100%);
+            background: #000;
             overflow: hidden;
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #phone-viewport.active {
+            opacity: 1;
+            background: radial-gradient(circle at center, #07084f 0%, #02031c 100%);
         }
 
         #ui-wrapper {
@@ -51,7 +73,8 @@
         @media (display-mode: standalone) { #ui-wrapper { padding-top: calc(env(safe-area-inset-top, 47px) + 15px); } }
 
         #ui { height: 50px; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
-        #controls { display: flex; align-items: center; gap: 15px; }
+
+        #controls { display: flex; align-items: center; gap: 15px; margin-left: -10px; }
 
         #alpha-label {
             color: #33b5e5;
@@ -129,6 +152,32 @@
             margin-left: -1px;
         }
 
+        .home-icon {
+            width: 18px;
+            height: 18px;
+            position: relative;
+        }
+        .home-icon::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            border-left: 9px solid transparent;
+            border-right: 9px solid transparent;
+            border-bottom: 9px solid #33b5e5;
+        }
+        .home-icon::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 18px;
+            height: 9px;
+            background-color: #33b5e5;
+        }
+
         .balloon-container { position: absolute; width: 85px; height: 180px; cursor: pointer; animation: floatUp linear forwards; will-change: transform; z-index: 5; }
         .paused { animation-play-state: paused !important; }
         .balloon { position: absolute; top: 0; left: 0; width: 85px; height: 85px; border-radius: 50%; box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4); }
@@ -147,25 +196,316 @@
 
         .particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; animation: explode 0.4s ease-out forwards; z-index: 6; }
         @keyframes explode { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; } }
+
+        #game-menu {
+            position: fixed;
+            inset: 0;
+            background-color: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 1;
+            visibility: visible;
+            animation: menuFadeIn 0.4s ease-out;
+        }
+
+        @keyframes menuFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        #game-menu.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .holo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 85px;
+            padding-top: env(safe-area-inset-top, 0px);
+            background-color: #000;
+            position: relative;
+            padding-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .holo-tab {
+            color: #fff;
+            font-size: 21px;
+            font-weight: 400;
+            padding: 0 20px;
+            cursor: pointer;
+            align-self: stretch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: background-color 0.08s ease-out;
+        }
+        .holo-tab:active { background-color: rgba(51, 181, 229, 0.4); }
+        .holo-tab::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 9px;
+            background-color: #33B5E5;
+        }
+
+        .market-title {
+            color: #C3C3C3;
+            font-size: 22px;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+
+        .holo-underline {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #33B5E5;
+        }
+
+        .menu-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #000;
+            padding-top: 25px;
+            overflow-y: auto;
+        }
+
+        .list-item {
+            width: 100%;
+            padding: 22px 18px;
+            cursor: pointer;
+            background-color: #000;
+            border: none;
+            transition: background-color 0.08s ease-out;
+        }
+
+        #start-btn {
+            margin-top: 30px;
+            border-top: 2px solid #2a2a2a;
+            border-bottom: 2px solid #2a2a2a;
+        }
+
+        #about-btn {
+            border-bottom: 2px solid #2a2a2a;
+        }
+
+        .list-item:active { background-color: rgba(51, 181, 229, 0.4); }
+
+        .item-text {
+            color: #C3C3C3;
+            font-size: 36px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            transition: color 0.08s ease-out;
+        }
+        .list-item:active .item-text { color: #fff; }
+
+        .menu-version {
+            margin-top: auto;
+            padding: 22px 24px calc(22px + env(safe-area-inset-bottom, 0px)) 24px;
+            color: #33b5e5;
+            font-family: 'Roboto', monospace;
+            font-size: 22px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            opacity: 1;
+            text-align: right;
+        }
+
+        #about-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+        #about-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #about-box {
+            background: #0a0a0a;
+            border: 2px solid #33B5E5;
+            max-width: 440px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            color: #C3C3C3;
+            transform: translateY(10px);
+            transition: transform 0.25s ease;
+        }
+        #about-overlay.visible #about-box { transform: translateY(0); }
+
+        #about-box h2 {
+            color: #33B5E5;
+            font-size: 24px;
+            font-weight: 400;
+            margin: 0;
+            padding: 22px 24px 18px 24px;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #33B5E5;
+        }
+
+        .about-body {
+            padding: 22px 24px;
+        }
+
+        .about-body p {
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 0 0 18px 0;
+            color: #C3C3C3;
+        }
+
+        .controls-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 6px;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .control-icon {
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .control-text {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #C3C3C3;
+        }
+        .control-text b {
+            color: #fff;
+            font-weight: 400;
+        }
+
+        .about-close {
+            display: block;
+            width: calc(100% - 48px);
+            margin: 6px 24px 22px 24px;
+            padding: 14px;
+            background: #33B5E5;
+            color: #000;
+            font-size: 17px;
+            font-weight: 400;
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: opacity 0.15s;
+        }
+        .about-close:active { opacity: 0.7; }
     </style>
 </head>
 <body>
+
     <div id="phone-viewport">
         <div id="ui-wrapper">
             <div id="ui">
                 <div id="controls">
+                    <button id="home-btn" class="nav-btn" title="Back to menu">
+                        <div class="home-icon"></div>
+                    </button>
                     <button id="pause-btn" class="nav-btn">
                         <div class="pause-balloon-icon"></div>
                     </button>
                     <button id="wave-btn" class="nav-btn">
                         <div class="wave-icon"></div>
                     </button>
-                    <span id="alpha-label">Alpha 1.2</span>
+                    <span id="alpha-label">Alpha 1.3.0</span>
                 </div>
                 <span id="score">0</span>
             </div>
         </div>
     </div>
+
+    <div id="game-menu">
+        <div class="holo-header">
+            <div class="holo-tab" id="tab-game">Game</div>
+            <div class="market-title">Balloons-Game</div>
+            <div class="holo-underline"></div>
+        </div>
+
+        <div class="menu-content">
+            <div class="list-item" id="start-btn">
+                <div class="item-text">Play</div>
+            </div>
+            <div class="list-item" id="about-btn">
+                <div class="item-text">How to play</div>
+            </div>
+            <div class="menu-version">Alpha 1.3.0</div>
+        </div>
+    </div>
+
+    <div id="about-overlay">
+        <div id="about-box">
+            <h2>How to play</h2>
+
+            <div class="about-body">
+                <p>
+                    Pop the balloons before they fly away. Each popped balloon gives you one point -
+                    try to beat your high score!
+                </p>
+
+                <div class="controls-list">
+                    <div class="control-row">
+                        <div class="control-icon">
+                            <div class="home-icon"></div>
+                        </div>
+                        <div class="control-text"><b>Home</b> - Back to the menu</div>
+                    </div>
+
+                    <div class="control-row">
+                        <div class="control-icon">
+                            <div class="pause-balloon-icon"></div>
+                        </div>
+                        <div class="control-text"><b>Balloon</b> - Pause / resume</div>
+                    </div>
+
+                    <div class="control-row">
+                        <div class="control-icon">
+                            <div class="wave-icon"></div>
+                        </div>
+                        <div class="control-text"><b>Double arrow</b> - Speed mode (wave)</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="about-close" id="about-close">Close</button>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('gesturestart', e => e.preventDefault());
 
@@ -176,10 +516,7 @@
             lastTouchEnd = now;
         }, { passive: false });
 
-        document.addEventListener('wheel', (e) => {
-            if (e.ctrlKey) e.preventDefault();
-        }, { passive: false });
-
+        document.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
         document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
         document.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -187,6 +524,7 @@
         const scoreEl = document.getElementById('score');
         const pauseBtn = document.getElementById('pause-btn');
         const waveBtn = document.getElementById('wave-btn');
+        const homeBtn = document.getElementById('home-btn');
         const alphaLabel = document.getElementById('alpha-label');
 
         let score = 0;
@@ -195,6 +533,7 @@
         let modeChangedOnPause = false;
         let spawnTimeout;
         let spawnTimeouts = [];
+        let gameStarted = false;
 
         let lastColorIndex = -1;
         let lastLeftPosition = -1;
@@ -204,6 +543,22 @@
             clearTimeout(spawnTimeout);
             spawnTimeouts.forEach(clearTimeout);
             spawnTimeouts = [];
+        }
+
+        function resetGame() {
+            clearAllSpawns();
+            document.querySelectorAll('.balloon-container').forEach(b => b.remove());
+            document.querySelectorAll('.particle').forEach(p => p.remove());
+            score = 0;
+            scoreEl.textContent = score;
+            isPaused = false;
+            isWaveMode = false;
+            modeChangedOnPause = false;
+            gameStarted = false;
+            pauseBtn.classList.remove('active-mode');
+            waveBtn.classList.remove('active-mode');
+            homeBtn.classList.remove('active-mode');
+            alphaLabel.classList.remove('active-mode');
         }
 
         function createBalloon() {
@@ -233,7 +588,7 @@
             lastLeftPosition = leftPos;
             container.style.left = `${leftPos}px`;
 
-            container.style.animationDuration = isWaveMode ? '2.5s' : '6.0s';
+            container.style.animationDuration = isWaveMode ? '2.5s' : '7.0s';
 
             const pop = (e) => {
                 if (isPaused) return;
@@ -275,7 +630,7 @@
         }
 
         function gameLoop() {
-            if (isPaused) return;
+            if (isPaused || !gameStarted) return;
 
             createBalloon();
 
@@ -347,7 +702,54 @@
         pauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); togglePause(); });
         pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
 
-        gameLoop();
+        const gameMenu = document.getElementById('game-menu');
+
+        function goToMenu() {
+            homeBtn.classList.add('active-mode');
+            setTimeout(() => {
+                homeBtn.classList.remove('active-mode');
+                resetGame();
+                viewport.classList.remove('active');
+                gameMenu.classList.remove('hidden');
+            }, 150);
+        }
+
+        homeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); goToMenu(); });
+        homeBtn.addEventListener('click', (e) => { e.stopPropagation(); goToMenu(); });
+
+        const startButton = document.getElementById('start-btn');
+        const aboutButton = document.getElementById('about-btn');
+        const gameTab     = document.getElementById('tab-game');
+
+        startButton.addEventListener('click', () => {
+            gameMenu.classList.add('hidden');
+            viewport.classList.add('active');
+            gameStarted = true;
+            setTimeout(() => {
+                gameLoop();
+            }, 300);
+        });
+
+        gameTab.addEventListener('click', () => {
+            console.log("Нажата вкладка Game");
+        });
+
+        const aboutOverlay = document.getElementById('about-overlay');
+        const aboutClose = document.getElementById('about-close');
+
+        aboutButton.addEventListener('click', () => {
+            aboutOverlay.classList.add('visible');
+        });
+
+        aboutClose.addEventListener('click', () => {
+            aboutOverlay.classList.remove('visible');
+        });
+
+        aboutOverlay.addEventListener('click', (e) => {
+            if (e.target === aboutOverlay) {
+                aboutOverlay.classList.remove('visible');
+            }
+        });
     </script>
 </body>
 </html>
