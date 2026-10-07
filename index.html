@@ -2,19 +2,42 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Balloons</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <title>Balloons-Game</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap" rel="stylesheet">
 
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-text-size-adjust: 100%;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
-        body { margin: 0; padding: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; overflow: hidden; }
-        #phone-viewport { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #07084f 0%, #02031c 100%); overflow: hidden; }
+
+        body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; }
+
+        #phone-viewport {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at center, #07084f 0%, #02031c 100%);
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
 
         #ui-wrapper {
             position: absolute;
@@ -110,8 +133,16 @@
         .paused { animation-play-state: paused !important; }
         .balloon { position: absolute; top: 0; left: 0; width: 85px; height: 85px; border-radius: 50%; box-shadow: inset -8px -8px 15px rgba(0,0,0,0.3), inset 8px 8px 15px rgba(255,255,255,0.4); }
         .balloon::before { content: ""; position: absolute; top: 12px; left: 12px; width: 20px; height: 12px; background: rgba(255, 255, 255, 0.5); border-radius: 50%; transform: rotate(-30deg); }
-        .balloon::after { content: ""; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid currentColor; }
-        .string { position: absolute; top: 88px; left: 50%; width: 2px; height: 70px; transform: translateX(-50%); clip-path: polygon(0% 0%, 100% 10%, 0% 20%, 100% 30%, 0% 40%, 100% 50%, 0% 60%, 100% 70%, 0% 80%, 100% 90%, 0% 100%); }
+        .balloon::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 10px solid currentColor;
+        }
         @keyframes floatUp { 0% { transform: translateY(102vh); } 100% { transform: translateY(-200px); } }
 
         .particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; animation: explode 0.4s ease-out forwards; z-index: 6; }
@@ -129,13 +160,29 @@
                     <button id="wave-btn" class="nav-btn">
                         <div class="wave-icon"></div>
                     </button>
-                    <span id="alpha-label">Alpha 1.1</span>
+                    <span id="alpha-label">Alpha 1.2</span>
                 </div>
                 <span id="score">0</span>
             </div>
         </div>
     </div>
     <script>
+        document.addEventListener('gesturestart', e => e.preventDefault());
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) e.preventDefault();
+            lastTouchEnd = now;
+        }, { passive: false });
+
+        document.addEventListener('wheel', (e) => {
+            if (e.ctrlKey) e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
         const viewport = document.getElementById('phone-viewport');
         const scoreEl = document.getElementById('score');
         const pauseBtn = document.getElementById('pause-btn');
@@ -162,7 +209,6 @@
         function createBalloon() {
             const container = document.createElement('div');
             const balloon = document.createElement('div');
-            const string = document.createElement('div');
 
             let colorIndex = Math.floor(Math.random() * colors.length);
             while (colorIndex === lastColorIndex) {
@@ -173,14 +219,11 @@
 
             container.className = 'balloon-container';
             balloon.className = 'balloon';
-            string.className = 'string';
 
             balloon.style.backgroundColor = color;
             balloon.style.color = color;
-            string.style.background = color;
 
             container.appendChild(balloon);
-            container.appendChild(string);
 
             let leftPos = Math.random() * (viewport.clientWidth - 95) + 5;
             if (lastLeftPosition !== -1 && Math.abs(leftPos - lastLeftPosition) < 70) {
@@ -192,10 +235,8 @@
 
             container.style.animationDuration = isWaveMode ? '2.5s' : '6.0s';
 
-            let popped = false;
             const pop = (e) => {
-                if (isPaused || popped) return;
-                popped = true;
+                if (isPaused) return;
                 e.preventDefault();
                 e.stopPropagation();
 
@@ -221,7 +262,8 @@
                 container.remove();
             };
 
-            container.addEventListener('pointerdown', pop);
+            container.addEventListener('touchstart', pop, { passive: false });
+            container.addEventListener('mousedown', pop);
 
             container.addEventListener('animationend', () => {
                 if (viewport.contains(container)) container.remove();
@@ -238,13 +280,12 @@
             createBalloon();
 
             if (isWaveMode) {
-                spawnTimeouts.push(setTimeout(createBalloon, 100));
-                spawnTimeouts.push(setTimeout(createBalloon, 200));
+                spawnTimeouts.push(setTimeout(createBalloon, 150));
                 spawnTimeouts.push(setTimeout(createBalloon, 300));
             }
 
             const delay = isWaveMode
-                ? (400 + Math.random() * 300)
+                ? (700 + Math.random() * 500)
                 : (400 + Math.random() * 600);
 
             spawnTimeout = setTimeout(gameLoop, delay);
@@ -301,16 +342,10 @@
             }
         }
 
-        function onTap(el, handler) {
-            el.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handler(e);
-            });
-        }
-
-        onTap(waveBtn, toggleWaveMode);
-        onTap(pauseBtn, togglePause);
+        waveBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggleWaveMode(); });
+        waveBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleWaveMode(); });
+        pauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); togglePause(); });
+        pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
 
         gameLoop();
     </script>
