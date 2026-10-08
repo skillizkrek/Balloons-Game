@@ -34,7 +34,20 @@
             background: #000;
         }
 
-        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
+        * {
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+
+        ::selection { background: transparent; color: inherit; }
+        ::-moz-selection { background: transparent; color: inherit; }
 
         body {
             display: flex;
@@ -85,7 +98,6 @@
             letter-spacing: 0.5px;
             line-height: 1;
             margin-left: -3px;
-            transition: opacity 0.2s;
         }
         #alpha-label.active-mode {
             opacity: 1;
@@ -110,7 +122,6 @@
             align-items: center;
             justify-content: center;
             opacity: 0.4;
-            transition: opacity 0.2s;
         }
         .nav-btn.active-mode { opacity: 1; }
 
@@ -244,7 +255,6 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            transition: background-color 0.08s ease-out;
         }
         .holo-tab:active { background-color: rgba(51, 181, 229, 0.4); }
         .holo-tab::after {
@@ -291,7 +301,6 @@
             cursor: pointer;
             background-color: #000;
             border: none;
-            transition: background-color 0.08s ease-out;
         }
 
         #start-btn {
@@ -311,7 +320,6 @@
             font-size: 36px;
             font-weight: 400;
             letter-spacing: 0.5px;
-            transition: color 0.08s ease-out;
         }
         .list-item:active .item-text { color: #fff; }
 
@@ -330,7 +338,7 @@
         #about-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.5);
             z-index: 10000;
             display: flex;
             align-items: center;
@@ -383,6 +391,7 @@
             display: flex;
             flex-direction: column;
             gap: 14px;
+            margin-top: 28px;   /* сдвиг туториала вниз */
             margin-bottom: 6px;
         }
 
@@ -423,9 +432,81 @@
             border: none;
             cursor: pointer;
             letter-spacing: 0.5px;
-            transition: opacity 0.15s;
         }
         .about-close:active { opacity: 0.7; }
+
+        #pause-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+        #pause-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #pause-box {
+            background: #0a0a0a;
+            border: 2px solid #33B5E5;
+            max-width: 440px;
+            width: 100%;
+            transform: translateY(10px);
+            transition: transform 0.25s ease;
+        }
+        #pause-overlay.visible #pause-box { transform: translateY(0); }
+
+        #pause-box h2 {
+            color: #33B5E5;
+            font-size: 24px;
+            font-weight: 400;
+            margin: 0;
+            padding: 22px 24px 18px 24px;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #33B5E5;
+        }
+
+        .pause-body {
+            padding: 28px 24px;
+        }
+
+        .pause-score {
+            color: #C3C3C3;
+            font-family: 'Roboto', monospace;
+            font-size: 28px;
+            margin: 0;
+            letter-spacing: 1px;
+            font-variant-numeric: tabular-nums;
+        }
+        .pause-score span {
+            color: #33B5E5;
+        }
+
+        .pause-btn-item {
+            display: block;
+            width: calc(100% - 48px);
+            margin: 0 24px 12px 24px;
+            padding: 16px;
+            background: #33B5E5;
+            color: #000;
+            font-size: 17px;
+            font-weight: 400;
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            font-family: inherit;
+        }
+        .pause-btn-item:last-of-type {
+            margin-bottom: 24px;
+        }
+        .pause-btn-item:active { opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -434,16 +515,13 @@
         <div id="ui-wrapper">
             <div id="ui">
                 <div id="controls">
-                    <button id="home-btn" class="nav-btn" title="Back to menu">
-                        <div class="home-icon"></div>
-                    </button>
                     <button id="pause-btn" class="nav-btn">
                         <div class="pause-balloon-icon"></div>
                     </button>
                     <button id="wave-btn" class="nav-btn">
                         <div class="wave-icon"></div>
                     </button>
-                    <span id="alpha-label">Alpha 1.3.0</span>
+                    <span id="alpha-label">Alpha 1.3.1</span>
                 </div>
                 <span id="score">0</span>
             </div>
@@ -464,7 +542,7 @@
             <div class="list-item" id="about-btn">
                 <div class="item-text">How to play</div>
             </div>
-            <div class="menu-version">Alpha 1.3.0</div>
+            <div class="menu-version">Alpha 1.3.1</div>
         </div>
     </div>
 
@@ -481,16 +559,10 @@
                 <div class="controls-list">
                     <div class="control-row">
                         <div class="control-icon">
-                            <div class="home-icon"></div>
-                        </div>
-                        <div class="control-text"><b>Home</b> - Back to the menu</div>
-                    </div>
-
-                    <div class="control-row">
-                        <div class="control-icon">
                             <div class="pause-balloon-icon"></div>
                         </div>
-                        <div class="control-text"><b>Balloon</b> - Pause / resume</div>
+                        <!-- заменили resume на continue -->
+                        <div class="control-text"><b>Balloon</b> - Pause / continue, back to menu</div>
                     </div>
 
                     <div class="control-row">
@@ -506,8 +578,20 @@
         </div>
     </div>
 
+    <div id="pause-overlay">
+        <div id="pause-box">
+            <h2>Pause</h2>
+            <div class="pause-body">
+                <p class="pause-score">Score - <span id="pause-score-value">0</span></p>
+            </div>
+            <button class="pause-btn-item" id="pause-continue">Continue</button>
+            <button class="pause-btn-item" id="pause-to-menu">Back to menu</button>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('gesturestart', e => e.preventDefault());
+        document.addEventListener('selectstart', e => e.preventDefault());
 
         let lastTouchEnd = 0;
         document.addEventListener('touchend', (e) => {
@@ -524,8 +608,12 @@
         const scoreEl = document.getElementById('score');
         const pauseBtn = document.getElementById('pause-btn');
         const waveBtn = document.getElementById('wave-btn');
-        const homeBtn = document.getElementById('home-btn');
         const alphaLabel = document.getElementById('alpha-label');
+
+        const pauseOverlay = document.getElementById('pause-overlay');
+        const pauseScoreValue = document.getElementById('pause-score-value');
+        const pauseContinue = document.getElementById('pause-continue');
+        const pauseToMenu = document.getElementById('pause-to-menu');
 
         let score = 0;
         let isPaused = false;
@@ -545,9 +633,13 @@
             spawnTimeouts = [];
         }
 
+        function removeAllBalloons() {
+            document.querySelectorAll('.balloon-container').forEach(b => b.remove());
+        }
+
         function resetGame() {
             clearAllSpawns();
-            document.querySelectorAll('.balloon-container').forEach(b => b.remove());
+            removeAllBalloons();
             document.querySelectorAll('.particle').forEach(p => p.remove());
             score = 0;
             scoreEl.textContent = score;
@@ -557,8 +649,8 @@
             gameStarted = false;
             pauseBtn.classList.remove('active-mode');
             waveBtn.classList.remove('active-mode');
-            homeBtn.classList.remove('active-mode');
             alphaLabel.classList.remove('active-mode');
+            pauseOverlay.classList.remove('visible');
         }
 
         function createBalloon() {
@@ -588,10 +680,11 @@
             lastLeftPosition = leftPos;
             container.style.left = `${leftPos}px`;
 
-            container.style.animationDuration = isWaveMode ? '2.5s' : '7.0s';
+            container.style.animationDuration = isWaveMode ? '2.2s' : '7.0s';
 
             const pop = (e) => {
-                if (isPaused) return;
+                if (isPaused || container.dataset.popped) return;
+                container.dataset.popped = '1';
                 e.preventDefault();
                 e.stopPropagation();
 
@@ -637,10 +730,11 @@
             if (isWaveMode) {
                 spawnTimeouts.push(setTimeout(createBalloon, 150));
                 spawnTimeouts.push(setTimeout(createBalloon, 300));
+                spawnTimeouts.push(setTimeout(createBalloon, 450));
             }
 
             const delay = isWaveMode
-                ? (700 + Math.random() * 500)
+                ? (600 + Math.random() * 400)
                 : (400 + Math.random() * 600);
 
             spawnTimeout = setTimeout(gameLoop, delay);
@@ -649,7 +743,7 @@
         function toggleWaveMode() {
             isWaveMode = !isWaveMode;
 
-            document.querySelectorAll('.balloon-container').forEach(b => b.remove());
+            removeAllBalloons();
             score = 0;
             scoreEl.textContent = score;
 
@@ -669,53 +763,60 @@
             }
         }
 
-        function togglePause() {
-            isPaused = !isPaused;
+        function openPause() {
+            if (isPaused) return;
+            isPaused = true;
+            pauseBtn.classList.add('active-mode');
+            pauseScoreValue.textContent = score;
+            clearAllSpawns();
+
+            document.querySelectorAll('.balloon-container').forEach(b => b.classList.add('paused'));
+            pauseOverlay.classList.add('visible');
+        }
+
+        function closePause() {
+            if (!isPaused) return;
+            isPaused = false;
+            pauseBtn.classList.remove('active-mode');
+            pauseOverlay.classList.remove('visible');
 
             document.querySelectorAll('.balloon-container').forEach(b => {
-                if (isPaused) {
-                    b.classList.add('paused');
-                } else {
-                    b.classList.add('paused');
-                    void b.offsetHeight;
-                    b.classList.remove('paused');
-                }
+                b.classList.add('paused');
+                void b.offsetHeight;
+                b.classList.remove('paused');
             });
 
-            if (isPaused) {
-                pauseBtn.classList.add('active-mode');
+            if (modeChangedOnPause) {
+                modeChangedOnPause = false;
                 clearAllSpawns();
+                gameLoop();
             } else {
-                pauseBtn.classList.remove('active-mode');
-                if (modeChangedOnPause) {
-                    modeChangedOnPause = false;
-                    clearAllSpawns();
-                    gameLoop();
-                } else {
-                    spawnTimeout = setTimeout(gameLoop, 400);
-                }
+                spawnTimeout = setTimeout(gameLoop, 400);
             }
         }
 
+        pauseBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (isPaused) closePause(); else openPause();
+        });
+        pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isPaused) closePause(); else openPause();
+        });
+
         waveBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); toggleWaveMode(); });
         waveBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleWaveMode(); });
-        pauseBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); togglePause(); });
-        pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePause(); });
+
+        pauseContinue.addEventListener('click', closePause);
+
+        pauseToMenu.addEventListener('click', () => {
+            pauseOverlay.classList.remove('visible');
+            resetGame();
+            viewport.classList.remove('active');
+            gameMenu.classList.remove('hidden');
+        });
 
         const gameMenu = document.getElementById('game-menu');
-
-        function goToMenu() {
-            homeBtn.classList.add('active-mode');
-            setTimeout(() => {
-                homeBtn.classList.remove('active-mode');
-                resetGame();
-                viewport.classList.remove('active');
-                gameMenu.classList.remove('hidden');
-            }, 150);
-        }
-
-        homeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); goToMenu(); });
-        homeBtn.addEventListener('click', (e) => { e.stopPropagation(); goToMenu(); });
 
         const startButton = document.getElementById('start-btn');
         const aboutButton = document.getElementById('about-btn');
@@ -743,12 +844,6 @@
 
         aboutClose.addEventListener('click', () => {
             aboutOverlay.classList.remove('visible');
-        });
-
-        aboutOverlay.addEventListener('click', (e) => {
-            if (e.target === aboutOverlay) {
-                aboutOverlay.classList.remove('visible');
-            }
         });
     </script>
 </body>
